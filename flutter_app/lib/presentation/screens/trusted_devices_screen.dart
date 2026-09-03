@@ -13,21 +13,15 @@ class TrustedDevicesScreen extends StatefulWidget {
 
 class _TrustedDevicesScreenState extends State<TrustedDevicesScreen> {
   final SecurityDataService _dataService = SecurityDataService();
-  late List<TrustedDevice> _devices;
-
-  @override
-  void initState() {
-    super.initState();
-    _devices = _dataService.getMockDevices();
-  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final devices = _dataService.getDevices();
 
     // Split devices into physical devices and applications
-    final physicalDevices = _devices.where((d) => d.type != 'external').toList();
-    final applications = _devices.where((d) => d.type == 'external').toList();
+    final physicalDevices = devices.where((d) => d.type != 'external').toList();
+    final applications = devices.where((d) => d.type == 'external').toList();
 
     return Scaffold(
       appBar: AppBar(

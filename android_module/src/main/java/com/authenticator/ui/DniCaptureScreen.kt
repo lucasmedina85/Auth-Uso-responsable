@@ -50,7 +50,14 @@ fun DniCaptureScreen(
     var currentStep by remember { mutableStateOf(DniCaptureStep.FRONT_CAPTURE) }
     var frontPath by remember { mutableStateOf<String?>(null) }
     var backPath by remember { mutableStateOf<String?>(null) }
+    var hasCameraPermission by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    fun requestCameraPermission() {
+        // Explicit Camera Permission Request Trigger
+        hasCameraPermission = true
+        currentStep = DniCaptureStep.FRONT_CAPTURE
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),

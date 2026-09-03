@@ -22,12 +22,12 @@ class _DeviceActivityTimelineScreenState extends State<DeviceActivityTimelineScr
     super.didChangeDependencies();
     final args = ModalRoute.of(context)?.settings.arguments;
     if (args is Map) {
-      _device = args['device'] as TrustedDevice? ?? _dataService.getMockDevices().first;
+      _device = args['device'] as TrustedDevice? ?? _dataService.getLatestDevice();
       _email = args['email'] as String? ?? 'Usuario';
     } else if (args is TrustedDevice) {
       _device = args;
     } else {
-      _device = _dataService.getMockDevices().first;
+      _device = _dataService.getLatestDevice();
     }
     _activities = _dataService.getMockActivity(_device.id);
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
+import '../../logic/security_data_service.dart';
 import '../widgets/buttons.dart';
 import '../widgets/inputs.dart';
 
@@ -36,6 +37,38 @@ class _AddApplicationScreenState extends State<AddApplicationScreen> {
     return _appNameController.text.trim().isNotEmpty && 
            _deviceNameController.text.trim().isNotEmpty && 
            _selectedType.isNotEmpty;
+  }
+
+  void _submitApplication() {
+    final now = DateTime.now();
+    final dateStr = '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
+    final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+    final newDevice = TrustedDevice(
+      id: _techId,
+      name: _appNameController.text.trim(),
+      type: _selectedType,
+      os: _deviceNameController.text.trim(),
+      associatedApp: _appNameController.text.trim(),
+      status: 'Autorizada',
+      lastConnectionDate: dateStr,
+      lastConnectionTime: timeStr,
+      location: 'Buenos Aires, Argentina',
+    );
+
+    // Save to central storage/table
+    SecurityDataService().addDevice(newDevice);
+
+    Navigator.pushNamed(
+      context, 
+      '/application_qr',
+      arguments: {
+        'device': newDevice,
+        'appName': _appNameController.text.trim(),
+        'deviceName': _deviceNameController.text.trim(),
+        'techId': _techId,
+      },
+    );
   }
 
   @override
@@ -175,16 +208,7 @@ class _AddApplicationScreenState extends State<AddApplicationScreen> {
               
               PrimaryButton(
                 text: 'Continuar',
-                onPressed: _isFormValid() ? () {
-                  Navigator.pushNamed(
-                    context, 
-                    '/application_qr',
-                    arguments: {
-                      'appName': _appNameController.text.trim(),
-                      'deviceName': _deviceNameController.text.trim(),
-                    }
-                  );
-                } : null,
+                onPressed: _isFormValid() ? _submitApplication : null,
               ),
             ],
           ),

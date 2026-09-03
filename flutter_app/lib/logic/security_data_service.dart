@@ -82,7 +82,17 @@ class SecurityActivity {
 class SecurityDataService {
   static final SecurityDataService _instance = SecurityDataService._internal();
   factory SecurityDataService() => _instance;
-  SecurityDataService._internal();
+  
+  late final List<TrustedDevice> _devices;
+  final Map<String, List<SecurityActivity>> _activitiesMap = {};
+  
+  String? dniFrontPath;
+  String? dniBackPath;
+  String? livenessVideoPath;
+
+  SecurityDataService._internal() {
+    _devices = getMockDevices();
+  }
 
   List<SecurityLog> getMockLogs() {
     return [
@@ -201,7 +211,37 @@ class SecurityDataService {
     ];
   }
 
+  List<TrustedDevice> getDevices() {
+    return List.unmodifiable(_devices);
+  }
+
+  TrustedDevice getLatestDevice() {
+    return _devices.isNotEmpty ? _devices.first : getMockDevices().first;
+  }
+
+  void addDevice(TrustedDevice device) {
+    _devices.insert(0, device);
+    // Add default initial registration activity
+    final initialActivity = SecurityActivity(
+      date: 'Hoy',
+      time: '${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}',
+      ip: '190.24.123.45',
+      device: device.name,
+      location: device.location,
+      event: 'Aplicación autorizada y vinculada',
+      status: EventStatus.success,
+    );
+    if (_activitiesMap.containsKey(device.id)) {
+      _activitiesMap[device.id]!.insert(0, initialActivity);
+    } else {
+      _activitiesMap[device.id] = [initialActivity, ...getMockActivity(device.id)];
+    }
+  }
+
   List<SecurityActivity> getMockActivity(String deviceId) {
+    if (_activitiesMap.containsKey(deviceId)) {
+      return _activitiesMap[deviceId]!;
+    }
     return [
       SecurityActivity(
         date: 'Hoy',

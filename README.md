@@ -180,4 +180,8 @@ git push -u origin main
   <b>AUTHENTICATOR | Plataforma de Seguridad e Identidad Digital</b><br>
   <i>Tecnología al servicio de la protección de la infancia y las adolescencias.</i>
 </p>
+<<<<<<< HEAD
 >>>>>>> 19b5d12366 (First commit - MVP Authenticator Juego Responsable)
+=======
+r
+>>>>>>> 17d5c38dc5 (init)

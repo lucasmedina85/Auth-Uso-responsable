@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
+import '../../logic/security_data_service.dart';
 import '../widgets/buttons.dart';
-import '../widgets/totp_components.dart'; // Ensure it has QrCodeCard if we created it there, else create here
 
 class ApplicationQrScreen extends StatelessWidget {
   const ApplicationQrScreen({super.key});
@@ -12,6 +12,11 @@ class ApplicationQrScreen extends StatelessWidget {
     final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     final appName = args?['appName'] ?? 'Aplicación';
     final deviceName = args?['deviceName'] ?? 'Dispositivo';
+    final techId = args?['techId'] ?? 'DISP-${DateTime.now().millisecondsSinceEpoch.toString().substring(7, 13)}';
+    
+    final TrustedDevice device = args?['device'] as TrustedDevice? ?? SecurityDataService().getLatestDevice();
+
+    final qrPayloadUrl = 'https://auth.juegoresponsable.gov.ar/login?device_id=$techId&app=${Uri.encodeComponent(appName)}';
 
     return Scaffold(
       appBar: AppBar(
@@ -37,13 +42,13 @@ class ApplicationQrScreen extends StatelessWidget {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: DesignTokens.spacing40),
+              const SizedBox(height: DesignTokens.spacing24),
               
-              // Mock QR Code Box
+              // Mock QR Code Box with Link Payload
               Center(
                 child: Container(
-                  width: 250,
-                  height: 250,
+                  width: 240,
+                  height: 240,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(DesignTokens.radiusLarge),
@@ -59,19 +64,45 @@ class ApplicationQrScreen extends StatelessWidget {
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      Icon(Icons.qr_code_2, size: 200, color: Colors.grey.shade800),
-                      // Fake corner squares for QR look
-                      Positioned(top: 25, left: 25, child: Icon(Icons.crop_square, size: 40, color: theme.primaryColor)),
-                      Positioned(top: 25, right: 25, child: Icon(Icons.crop_square, size: 40, color: theme.primaryColor)),
-                      Positioned(bottom: 25, left: 25, child: Icon(Icons.crop_square, size: 40, color: theme.primaryColor)),
+                      Icon(Icons.qr_code_2, size: 190, color: Colors.grey.shade800),
+                      Positioned(top: 20, left: 20, child: Icon(Icons.crop_square, size: 36, color: theme.primaryColor)),
+                      Positioned(top: 20, right: 20, child: Icon(Icons.crop_square, size: 36, color: theme.primaryColor)),
+                      Positioned(bottom: 20, left: 20, child: Icon(Icons.crop_square, size: 36, color: theme.primaryColor)),
                     ],
                   ),
                 ),
               ),
               
-              const SizedBox(height: DesignTokens.spacing40),
+              const SizedBox(height: DesignTokens.spacing16),
               
-              // App Details Info
+              // Link inside QR payload text display
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: theme.primaryColor.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusSmall),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.link, size: 16, color: theme.primaryColor),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        qrPayloadUrl,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.primaryColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: DesignTokens.spacing24),
+              
+              // App & Login Details Info
               Container(
                 padding: const EdgeInsets.all(DesignTokens.spacing16),
                 decoration: BoxDecoration(
@@ -80,26 +111,42 @@ class ApplicationQrScreen extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    _buildInfoRow(context, 'Nombre', appName),
-                    const Divider(height: 24),
+                    _buildInfoRow(context, 'Aplicación', appName),
+                    const Divider(height: 20),
                     _buildInfoRow(context, 'Dispositivo', deviceName),
+                    const Divider(height: 20),
+                    _buildInfoRow(context, 'ID Dispositivo', techId),
+                    const Divider(height: 20),
+                    _buildInfoRow(context, 'Estado Login', 'Esperando Autorización', isStatus: true),
                   ],
                 ),
               ),
               
-              const SizedBox(height: DesignTokens.spacing24),
+              const SizedBox(height: DesignTokens.spacing20),
               
-              TextualButton(
-                text: 'Copiar clave de configuración',
+              SecondaryButton(
+                text: 'Ver Actividad en Dispositivo',
                 onPressed: () {
-                  // Simulate biometric request to view secret
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Se requerirá autenticación biométrica para ver la clave.')),
+                  Navigator.pushNamed(
+                    context, 
+                    '/device_activity',
+                    arguments: device,
                   );
                 },
               ),
               
-              const SizedBox(height: DesignTokens.spacing32),
+              const SizedBox(height: DesignTokens.spacing12),
+              
+              TextualButton(
+                text: 'Copiar clave de configuración',
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Clave de acceso y enlace copiados al portapapeles.')),
+                  );
+                },
+              ),
+              
+              const SizedBox(height: DesignTokens.spacing24),
               
               PrimaryButton(
                 text: 'He escaneado el código',
@@ -110,7 +157,8 @@ class ApplicationQrScreen extends StatelessWidget {
                     arguments: {
                       'appName': appName,
                       'deviceName': deviceName,
-                    }
+                      'device': device,
+                    },
                   );
                 },
               ),
@@ -121,7 +169,7 @@ class ApplicationQrScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(BuildContext context, String label, String value) {
+  Widget _buildInfoRow(BuildContext context, String label, String value, {bool isStatus = false}) {
     final theme = Theme.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -136,7 +184,7 @@ class ApplicationQrScreen extends StatelessWidget {
         Text(
           value,
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurface,
+            color: isStatus ? theme.primaryColor : theme.colorScheme.onSurface,
             fontWeight: FontWeight.bold,
           ),
         ),

@@ -1,0 +1,7 @@
+#Script para compilar APK
+cd android
+./gradlew clean
+cd ..
+flutter clean
+flutter pub get
+flutter build apk --release

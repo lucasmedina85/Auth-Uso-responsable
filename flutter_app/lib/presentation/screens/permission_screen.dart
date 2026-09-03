@@ -1,10 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../core/theme/design_tokens.dart';
 import '../widgets/buttons.dart';
 
 /// Screens 05 & 06 - Privacy and Security Information / Permission Rationale
 class PermissionScreen extends StatelessWidget {
   const PermissionScreen({super.key});
+
+  Future<void> _requestCameraPermission(BuildContext context) async {
+    final status = await Permission.camera.request();
+    if (context.mounted) {
+      if (status.isGranted) {
+        Navigator.pushReplacementNamed(context, '/dni_capture');
+      } else if (status.isPermanentlyDenied) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('El permiso de cámara fue denegado permanentemente. Por favor habilítalo en la configuración.'),
+          ),
+        );
+        openAppSettings();
+      } else {
+        // Direct transition so DniCaptureScreen can handle fallback or retry prompt
+        Navigator.pushReplacementNamed(context, '/dni_capture');
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,10 +75,7 @@ class PermissionScreen extends StatelessWidget {
               
               PrimaryButton(
                 text: 'Permitir Acceso a Cámara',
-                onPressed: () {
-                  // Request permission, then navigate
-                  Navigator.pushReplacementNamed(context, '/dni_capture');
-                },
+                onPressed: () => _requestCameraPermission(context),
               ),
               const SizedBox(height: DesignTokens.spacing16),
               TextualButton(

@@ -1,5 +1,10 @@
+import 'dart:io' as io;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:camera/camera.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../core/theme/design_tokens.dart';
+import '../../logic/security_data_service.dart';
 import '../widgets/buttons.dart';
 
 enum FlutterCaptureStep { front, validateFront, back, validateBack, cameraError }
@@ -25,25 +30,128 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
   String? _backPath;
   bool _isProcessing = false;
 
+  CameraController? _cameraController;
+  bool _isCameraInitialized = false;
+  String? _cameraErrorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeCameraWithPermission();
+  }
+
+  Future<void> _initializeCameraWithPermission() async {
+    setState(() {
+      _isProcessing = true;
+      _cameraErrorMessage = null;
+    });
+
+    try {
+      final permissionStatus = await Permission.camera.request();
+
+      if (!permissionStatus.isGranted) {
+        if (mounted) {
+          setState(() {
+            _isProcessing = false;
+            _step = FlutterCaptureStep.cameraError;
+            _cameraErrorMessage = 'Permiso de cámara denegado. Habilítalo para tomar la fotografía.';
+          });
+        }
+        return;
+      }
+
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _isProcessing = false;
+            _step = FlutterCaptureStep.cameraError;
+            _cameraErrorMessage = 'No se encontró hardware de cámara en el dispositivo.';
+          });
+        }
+        return;
+      }
+
+      final selectedCamera = cameras.firstWhere(
+        (cam) => cam.lensDirection == CameraLensDirection.back,
+        orElse: () => cameras.first,
+      );
+
+      final controller = CameraController(
+        selectedCamera,
+        ResolutionPreset.medium,
+        enableAudio: false,
+      );
+
+      await controller.initialize();
+
+      if (mounted) {
+        setState(() {
+          _cameraController = controller;
+          _isCameraInitialized = true;
+          _isProcessing = false;
+          if (_step == FlutterCaptureStep.cameraError) {
+            _step = FlutterCaptureStep.front;
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+          _isCameraInitialized = false;
+          _step = FlutterCaptureStep.cameraError;
+          _cameraErrorMessage = 'Error al acceder a la cámara: ${e.toString()}';
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _cameraController?.dispose();
+    super.dispose();
+  }
+
   void _handleCapture() async {
     setState(() {
       _isProcessing = true;
     });
-    
-    // Simulate camera capture delay
-    await Future.delayed(const Duration(milliseconds: 800));
-    
-    if (mounted) {
-      setState(() {
-        _isProcessing = false;
-        if (_step == FlutterCaptureStep.front) {
-          _frontPath = '/tmp/dni_front_flutter.jpg';
-          _step = FlutterCaptureStep.validateFront;
-        } else if (_step == FlutterCaptureStep.back) {
-          _backPath = '/tmp/dni_back_flutter.jpg';
-          _step = FlutterCaptureStep.validateBack;
-        }
-      });
+
+    try {
+      String capturedPath;
+      if (_cameraController != null && _cameraController!.value.isInitialized) {
+        final XFile imageFile = await _cameraController!.takePicture();
+        capturedPath = imageFile.path;
+      } else {
+        await Future.delayed(const Duration(milliseconds: 800));
+        capturedPath = _step == FlutterCaptureStep.front
+            ? '/tmp/dni_front_flutter.jpg'
+            : '/tmp/dni_back_flutter.jpg';
+      }
+
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+          if (_step == FlutterCaptureStep.front) {
+            _frontPath = capturedPath;
+            SecurityDataService().dniFrontPath = capturedPath;
+            _step = FlutterCaptureStep.validateFront;
+          } else if (_step == FlutterCaptureStep.back) {
+            _backPath = capturedPath;
+            SecurityDataService().dniBackPath = capturedPath;
+            _step = FlutterCaptureStep.validateBack;
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+          _step = FlutterCaptureStep.cameraError;
+          _cameraErrorMessage = 'Fallo en la captura de foto: ${e.toString()}';
+        });
+      }
     }
   }
 
@@ -70,10 +178,81 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
     }
   }
 
+  Widget _buildCapturedPreview(String imagePath) {
+    Widget imageWidget;
+    if (kIsWeb || imagePath.startsWith('http')) {
+      imageWidget = Image.network(imagePath, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _buildFallbackPreview());
+    } else if (io.File(imagePath).existsSync()) {
+      imageWidget = Image.file(io.File(imagePath), fit: BoxFit.cover);
+    } else {
+      imageWidget = _buildFallbackPreview();
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      alignment: Alignment.center,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: imageWidget,
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.35),
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: AppColorsLight.success,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check,
+                size: 36,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black87,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text(
+                'Foto capturada',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            )
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFallbackPreview() {
+    return Container(
+      color: Colors.grey.shade900,
+      child: Center(
+        child: Icon(Icons.badge_outlined, size: 80, color: Colors.grey.shade600),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isValidationStep = _step == FlutterCaptureStep.validateFront || _step == FlutterCaptureStep.validateBack;
+    final currentCapturedPath = _step == FlutterCaptureStep.validateFront ? _frontPath : _backPath;
 
     return Scaffold(
       appBar: AppBar(
@@ -82,7 +261,7 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
               ? 'DNI Frente'
               : _step == FlutterCaptureStep.back || _step == FlutterCaptureStep.validateBack
                   ? 'DNI Reverso'
-                  : 'Error de Cámara',
+                  : 'Acceso a Cámara',
         ),
       ),
       body: SafeArea(
@@ -97,8 +276,8 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
                     : _step == FlutterCaptureStep.front
                         ? 'Colocá el frente de tu DNI dentro del marco.'
                         : _step == FlutterCaptureStep.back
-                            ? 'Ahora volteá tu DNI para capturar el código de barras.'
-                            : 'El hardware de la cámara no está disponible.',
+                            ? 'Ahora volteá tu DNI para capturar el código de barras del reverso.'
+                            : 'Se requiere permiso para usar la cámara.',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
@@ -124,58 +303,63 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
                     alignment: Alignment.center,
                     children: [
                       if (_step == FlutterCaptureStep.cameraError)
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.error_outline_rounded,
-                              size: 64,
-                              color: theme.colorScheme.error,
-                            ),
-                            const SizedBox(height: DesignTokens.spacing16),
-                            Text(
-                              'Fallo en Acceso a Cámara',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: Colors.white,
+                        Padding(
+                          padding: const EdgeInsets.all(DesignTokens.spacing24),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.no_photography_outlined,
+                                size: 64,
+                                color: theme.colorScheme.error,
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: DesignTokens.spacing16),
+                              Text(
+                                'Permiso o Hardware de Cámara No Disponible',
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: DesignTokens.spacing8),
+                              Text(
+                                _cameraErrorMessage ?? 'Por favor autorizá el uso de la cámara en el navegador o dispositivo.',
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ],
+                          ),
                         )
                       else ...[
-                        // Argentine DNI Frame Ratio (8.56cm x 5.398cm ~ 1.586)
+                        // Live Camera Feed
+                        if (_isCameraInitialized && _cameraController != null && !isValidationStep)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(DesignTokens.radiusLarge),
+                            child: AspectRatio(
+                              aspectRatio: _cameraController!.value.aspectRatio,
+                              child: CameraPreview(_cameraController!),
+                            ),
+                          ),
+
+                        // Argentine DNI Frame Overlay (Ratio ~ 1.586)
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24.0),
                           child: AspectRatio(
                             aspectRatio: 1.586,
                             child: Container(
                               decoration: BoxDecoration(
-                                color: isValidationStep ? Colors.grey.shade800 : Colors.transparent,
+                                color: isValidationStep ? Colors.black : Colors.transparent,
                                 border: Border.all(
-                                  color: isValidationStep ? Colors.white : theme.primaryColor,
+                                  color: isValidationStep ? AppColorsLight.success : theme.primaryColor,
                                   width: 3,
                                 ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: isValidationStep
-                                  ? Center(
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.image_outlined,
-                                            size: 48,
-                                            color: Colors.white.withOpacity(0.5),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Captura Realizada',
-                                            style: theme.textTheme.bodyMedium?.copyWith(
-                                              color: Colors.white,
-                                            ),
-                                          )
-                                        ],
-                                      ),
-                                    )
+                              child: isValidationStep && currentCapturedPath != null
+                                  ? _buildCapturedPreview(currentCapturedPath)
                                   : null,
                             ),
                           ),
@@ -183,14 +367,21 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
                         
                         if (!isValidationStep)
                           Positioned(
-                            bottom: 30,
-                            child: Text(
-                              _step == FlutterCaptureStep.front
-                                  ? 'LADO FRONTAL'
-                                  : 'LADO TRASERO (PDF417)',
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                color: Colors.white.withOpacity(0.8),
-                                letterSpacing: 1.5,
+                            bottom: 20,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                _step == FlutterCaptureStep.front
+                                    ? 'LADO FRONTAL'
+                                    : 'LADO TRASERO (PDF417)',
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  color: Colors.white,
+                                  letterSpacing: 1.5,
+                                ),
                               ),
                             ),
                           ),
@@ -208,14 +399,14 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
                   ),
                 ),
               ),
-              const SizedBox(height: DesignTokens.spacing32),
+              const SizedBox(height: DesignTokens.spacing24),
 
               // Checklist for Front Step (Only when not validating)
               if (_step == FlutterCaptureStep.front && !_isProcessing) ...[
                 _buildChecklistItem(context, 'Buena iluminación'),
-                _buildChecklistItem(context, 'Documento completo visible'),
-                _buildChecklistItem(context, 'Sin reflejos'),
-                const SizedBox(height: DesignTokens.spacing32),
+                _buildChecklistItem(context, 'Documento completo visible dentro del marco'),
+                _buildChecklistItem(context, 'Sin reflejos sobre el plástico'),
+                const SizedBox(height: DesignTokens.spacing24),
               ],
 
               // Control Buttons
@@ -263,7 +454,18 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
                     ),
                   ],
                 ),
-              ] else if (_step != FlutterCaptureStep.cameraError) ...[
+              ] else if (_step == FlutterCaptureStep.cameraError) ...[
+                PrimaryButton(
+                  text: 'Solicitar Permiso de Cámara',
+                  onPressed: _initializeCameraWithPermission,
+                  isLoading: _isProcessing,
+                ),
+                const SizedBox(height: DesignTokens.spacing12),
+                TextualButton(
+                  text: 'Ingresar Datos Manualmente',
+                  onPressed: widget.onManualFallback,
+                ),
+              ] else ...[
                 PrimaryButton(
                   text: _step == FlutterCaptureStep.front ? 'Capturar Frente' : 'Capturar Reverso',
                   onPressed: _isProcessing ? null : _handleCapture,
@@ -271,13 +473,13 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
                 ),
               ],
               
-              const SizedBox(height: DesignTokens.spacing16),
-
-              if (!isValidationStep && (_step == FlutterCaptureStep.cameraError || _step == FlutterCaptureStep.back))
+              if (!isValidationStep && _step != FlutterCaptureStep.cameraError) ...[
+                const SizedBox(height: DesignTokens.spacing12),
                 TextualButton(
                   text: 'Ingresar Datos Manualmente',
                   onPressed: widget.onManualFallback,
                 ),
+              ],
             ],
           ),
         ),
@@ -293,10 +495,12 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
         children: [
           Icon(Icons.check_circle, color: AppColorsLight.success, size: 20),
           const SizedBox(width: DesignTokens.spacing12),
-          Text(
-            text,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ],
@@ -304,3 +508,4 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
     );
   }
 }
+
