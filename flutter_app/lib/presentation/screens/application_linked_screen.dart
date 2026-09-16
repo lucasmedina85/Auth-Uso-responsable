@@ -92,17 +92,12 @@ class ApplicationLinkedScreen extends StatelessWidget {
               const Spacer(),
               
               PrimaryButton(
-                text: 'Ver código',
+                text: 'Ver Aplicaciones Vinculadas',
                 onPressed: () {
-                  // Pass the created app info to the dashboard
                   Navigator.pushNamedAndRemoveUntil(
                     context, 
-                    '/authenticator_dashboard', 
-                    (route) => false,
-                    arguments: {
-                      'appName': appName,
-                      'deviceName': deviceName,
-                    }
+                    '/linked_apps_list', 
+                    (route) => route.settings.name == '/dashboard',
                   );
                 },
               ),

@@ -56,7 +56,9 @@ class _FaceLivenessScreenState extends State<FaceLivenessScreen> {
         return;
       }
       
-      final cameras = await availableCameras();
+      final cameras = await availableCameras().timeout(const Duration(seconds: 3), onTimeout: () {
+        throw TimeoutException("No se pudieron obtener las cámaras disponibles.");
+      });
       if (cameras.isNotEmpty) {
         final frontCam = cameras.firstWhere(
           (cam) => cam.lensDirection == CameraLensDirection.front,
@@ -69,7 +71,12 @@ class _FaceLivenessScreenState extends State<FaceLivenessScreen> {
           enableAudio: false,
         );
 
-        await controller.initialize();
+        // Pequeña pausa para asegurar que el hardware esté libre
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        await controller.initialize().timeout(const Duration(seconds: 5), onTimeout: () {
+          throw TimeoutException("La cámara tardó demasiado en iniciar.");
+        });
         try {
           await controller.setFlashMode(FlashMode.off);
         } catch (_) {

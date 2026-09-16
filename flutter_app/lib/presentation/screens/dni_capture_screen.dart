@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' as io;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -72,7 +73,9 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
         return;
       }
 
-      final cameras = await availableCameras();
+      final cameras = await availableCameras().timeout(const Duration(seconds: 3), onTimeout: () {
+        throw TimeoutException("No se pudieron obtener las cámaras disponibles.");
+      });
       if (cameras.isEmpty) {
         if (mounted) {
           setState(() {
@@ -95,7 +98,9 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
         enableAudio: false,
       );
 
-      await controller.initialize();
+      await controller.initialize().timeout(const Duration(seconds: 5), onTimeout: () {
+        throw TimeoutException("La cámara tardó demasiado en iniciar.");
+      });
       try {
         await controller.setFlashMode(FlashMode.off);
       } catch (_) {
@@ -136,6 +141,8 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
       await _cameraController!.dispose();
       _cameraController = null;
     }
+    // Pequeña pausa extra para que Android termine de liberar el hardware de la cámara
+    await Future.delayed(const Duration(milliseconds: 500));
     action();
   }
 

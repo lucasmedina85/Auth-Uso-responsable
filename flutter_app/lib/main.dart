@@ -20,6 +20,7 @@ import 'presentation/screens/logs_screen.dart';
 import 'presentation/screens/add_application_screen.dart';
 import 'presentation/screens/application_qr_screen.dart';
 import 'presentation/screens/application_linked_screen.dart';
+import 'presentation/screens/linked_applications_screen.dart';
 import 'presentation/screens/authenticator_dashboard_screen.dart';
 import 'presentation/screens/device_details_screen.dart';
 import 'presentation/screens/security_history_screen.dart';
@@ -89,6 +90,7 @@ class AuthenticatorApp extends StatelessWidget {
         '/authentication_success': (context) => const AuthenticationSuccessScreen(),
         '/dashboard': (context) => const UserDashboardScreen(),
         '/add_application': (context) => const AddApplicationScreen(),
+        '/linked_apps_list': (context) => const LinkedApplicationsScreen(),
         '/application_qr': (context) => const ApplicationQrScreen(),
         '/application_linked': (context) => const ApplicationLinkedScreen(),
         '/authenticator_dashboard': (context) => const AuthenticatorDashboardScreen(),

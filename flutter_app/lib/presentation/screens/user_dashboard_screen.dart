@@ -151,6 +151,22 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: DesignTokens.spacing16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildActionCard(context, Icons.apps, 'Aplicaciones\nVinculadas', () {
+                      Navigator.pushNamed(context, '/linked_apps_list');
+                    }),
+                  ),
+                  const SizedBox(width: DesignTokens.spacing16),
+                  Expanded(
+                    child: _buildActionCard(context, Icons.add_to_home_screen, 'Agregar\nAplicación', () {
+                      Navigator.pushNamed(context, '/add_application');
+                    }),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
