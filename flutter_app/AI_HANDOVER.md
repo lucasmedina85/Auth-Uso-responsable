@@ -66,3 +66,7 @@ Para la próxima iteración del proyecto, se ha establecido el siguiente recorri
 5. **Logs de Usuarios y Exportación CSV:**
    - Migrar la pantalla de Actividad / Log de Seguridad (`SecurityHistoryScreen`) para que lea de una tabla local persistente.
    - Implementar una funcionalidad de exportación a CSV (`csv` package) que permita al usuario (o administrador) guardar el registro de actividades (fecha, IP, evento, ubicación) en la carpeta de descargas del dispositivo.
+
+6. **Gestión Real de Autenticación (Login y Registro):**
+   - Eliminar el comportamiento actual de "mock" en `LoginScreen` y `RegisterScreen` que permite ingresar al Dashboard digitando cualquier credencial o PIN.
+   - Implementar un flujo real de validación: el registro debe persistir las credenciales (localmente o en backend) de forma segura (ej. hashing con bcrypt/argon2), y el Login debe rechazar cualquier intento de acceso con datos no registrados o incorrectos, bloqueando al usuario en la pantalla de bienvenida.
