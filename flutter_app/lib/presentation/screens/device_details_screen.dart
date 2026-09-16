@@ -121,11 +121,14 @@ class DeviceDetailsScreen extends StatelessWidget {
               Icon(icon, size: 16, color: valueColor ?? theme.colorScheme.onSurface),
               const SizedBox(width: DesignTokens.spacing4),
             ],
-            Text(
-              value,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: valueColor ?? theme.colorScheme.onSurface,
-                fontWeight: FontWeight.bold,
+            Expanded(
+              child: Text(
+                value,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: valueColor ?? theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.end,
               ),
             ),
           ],

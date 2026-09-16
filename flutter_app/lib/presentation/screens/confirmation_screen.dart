@@ -19,7 +19,7 @@ class ConfirmationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.neutralLightGray,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(28.0),
@@ -52,7 +52,7 @@ class ConfirmationScreen extends StatelessWidget {
                 style: GoogleFonts.montserrat(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.deepGraphite,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),
               const SizedBox(height: 12),
@@ -64,7 +64,7 @@ class ConfirmationScreen extends StatelessWidget {
                 style: GoogleFonts.montserrat(
                   fontSize: 14,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.deepGraphite,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                   height: 1.5,
                 ),
               ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../core/theme/app_theme.dart';
 import '../../logic/security_data_service.dart';
+import '../widgets/shared_bottom_nav_bar.dart';
 import '../widgets/buttons.dart';
 
 class TrustedDevicesScreen extends StatefulWidget {
@@ -66,6 +67,9 @@ class _TrustedDevicesScreenState extends State<TrustedDevicesScreen> {
             ...applications.map((app) => _buildAppCard(context, app)),
           ],
         ),
+      ),
+      bottomNavigationBar: const SharedBottomNavBar(
+        currentIndex: 0,
       ),
     );
   }

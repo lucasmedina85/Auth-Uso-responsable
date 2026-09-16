@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:geolocator/geolocator.dart';
+import '../widgets/shared_bottom_nav_bar.dart';
+import 'package:geocoding/geocoding.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../core/theme/app_theme.dart';
 import '../../logic/security_data_service.dart';
@@ -12,8 +17,9 @@ class DeviceActivityTimelineScreen extends StatefulWidget {
 
 class _DeviceActivityTimelineScreenState extends State<DeviceActivityTimelineScreen> {
   final SecurityDataService _dataService = SecurityDataService();
-  late List<SecurityActivity> _activities;
-  late TrustedDevice _device;
+  List<SecurityActivity> _activities = [];
+  TrustedDevice? _device;
+  bool _isLoading = true;
 
   String _email = 'Usuario';
 
@@ -21,24 +27,101 @@ class _DeviceActivityTimelineScreenState extends State<DeviceActivityTimelineScr
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args = ModalRoute.of(context)?.settings.arguments;
+    
     if (args is Map) {
-      _device = args['device'] as TrustedDevice? ?? _dataService.getLatestDevice();
       _email = args['email'] as String? ?? 'Usuario';
-    } else if (args is TrustedDevice) {
-      _device = args;
-    } else {
-      _device = _dataService.getLatestDevice();
     }
-    _activities = _dataService.getMockActivity(_device.id);
+
+    // Always attempt to load real context for the timeline if we navigate here
+    _loadRealDeviceContext();
+  }
+
+  Future<void> _loadRealDeviceContext() async {
+    // Attempt to get location
+    String location = 'Ubicación desconocida';
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (serviceEnabled) {
+        LocationPermission permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
+          Position pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+          List<Placemark> placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
+          if (placemarks.isNotEmpty) {
+            location = '${placemarks[0].street}, ${placemarks[0].locality}';
+          }
+        }
+      }
+    } catch (_) {}
+
+    // Get Device Info
+    DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+    String deviceName = 'Dispositivo Desconocido';
+    String osName = 'SO Desconocido';
+    String type = kIsWeb ? 'web' : 'mobile';
+
+    try {
+      if (kIsWeb) {
+        WebBrowserInfo webInfo = await deviceInfo.webBrowserInfo;
+        deviceName = webInfo.browserName.name;
+        osName = webInfo.platform ?? 'Web';
+      } else {
+        AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+        deviceName = androidInfo.model;
+        osName = 'Android ${androidInfo.version.release}';
+      }
+    } catch (_) {}
+
+    // Force update the singleton with real info
+    _dataService.updateRealDeviceActivity(
+      deviceName: deviceName,
+      osName: osName,
+      location: location,
+      type: type,
+    );
+
+    setState(() {
+      _device = _dataService.getLatestDevice();
+      // Ensure we only show the real activities, stripping out old mock data for this view
+      _activities = _dataService.getMockActivity(_device!.id).where((act) => act.device == deviceName).toList();
+      
+      // Fallback if filtering removed everything
+      if (_activities.isEmpty) {
+         _activities = _dataService.getMockActivity(_device!.id);
+      }
+      
+      _isLoading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    if (_isLoading || _device == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Actividad')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final device = _device!;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Actividad'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Configuración de Validación',
+            onPressed: () {
+              Navigator.pushNamed(
+                context, 
+                '/validation_config',
+                arguments: {'email': _email},
+              );
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -51,7 +134,7 @@ class _DeviceActivityTimelineScreenState extends State<DeviceActivityTimelineScr
               child: Row(
                 children: [
                   Icon(
-                    _device.type == 'mobile' ? Icons.smartphone : Icons.computer,
+                    device.type == 'mobile' ? Icons.smartphone : Icons.computer,
                     size: 32,
                     color: theme.primaryColor,
                   ),
@@ -61,7 +144,7 @@ class _DeviceActivityTimelineScreenState extends State<DeviceActivityTimelineScr
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _device.name,
+                          device.name,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -102,6 +185,10 @@ class _DeviceActivityTimelineScreenState extends State<DeviceActivityTimelineScr
             ),
           ],
         ),
+      ),
+      bottomNavigationBar: SharedBottomNavBar(
+        currentIndex: 1,
+        displayName: _email,
       ),
     );
   }

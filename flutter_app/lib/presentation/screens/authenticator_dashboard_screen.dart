@@ -166,6 +166,8 @@ class _AuthenticatorDashboardScreenState extends State<AuthenticatorDashboardScr
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final now = DateTime.now();
+    final isClassHours = now.hour >= 7 && now.hour < 17;
 
     return Scaffold(
       appBar: AppBar(
@@ -173,44 +175,80 @@ class _AuthenticatorDashboardScreenState extends State<AuthenticatorDashboardScr
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () {
+            onPressed: isClassHours ? null : () {
               Navigator.pushNamed(context, '/add_application');
             },
           ),
         ],
       ),
       body: SafeArea(
-        child: _applications.isEmpty
-            ? _buildEmptyState(theme)
-            : ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: DesignTokens.spacing24,
-                  vertical: DesignTokens.spacing24,
-                ),
-                itemCount: _applications.length + 1,
-                itemBuilder: (context, index) {
-                  if (index == 0) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: DesignTokens.spacing24),
-                      child: Text(
-                        'Tus códigos de seguridad',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    );
-                  }
-                  
-                  final app = _applications[index - 1];
-                  return ApplicationCard(
-                    appName: app['appName']!,
-                    deviceName: app['deviceName']!,
-                    applicationId: app['appId']!,
-                    onCopy: () {},
-                    onMenuTap: () => _showMenu(context, app),
-                  );
-                },
-              ),
+        child: isClassHours
+            ? _buildTimeBlockedState(theme)
+            : _applications.isEmpty
+                ? _buildEmptyState(theme)
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: DesignTokens.spacing24,
+                      vertical: DesignTokens.spacing24,
+                    ),
+                    itemCount: _applications.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == 0) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: DesignTokens.spacing24),
+                          child: Text(
+                            'Tus códigos de seguridad',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        );
+                      }
+                      
+                      final app = _applications[index - 1];
+                      return ApplicationCard(
+                        appName: app['appName']!,
+                        deviceName: app['deviceName']!,
+                        applicationId: app['appId']!,
+                        onCopy: () {},
+                        onMenuTap: () => _showMenu(context, app),
+                      );
+                    },
+                  ),
+      ),
+    );
+  }
+
+  Widget _buildTimeBlockedState(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.all(DesignTokens.spacing24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Icon(
+            Icons.access_time_filled,
+            size: 80,
+            color: theme.colorScheme.error,
+          ),
+          const SizedBox(height: DesignTokens.spacing24),
+          Text(
+            'Generación Bloqueada',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.error,
+            ),
+          ),
+          const SizedBox(height: DesignTokens.spacing8),
+          Text(
+            'Por políticas de seguridad (CU-0022), no se permite generar códigos de autenticación durante el horario de clases (07:00 a 17:00 hs).\n\nPodrás generar códigos fuera de este horario.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+        ],
       ),
     );
   }

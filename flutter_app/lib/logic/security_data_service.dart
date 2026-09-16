@@ -94,6 +94,48 @@ class SecurityDataService {
     _devices = getMockDevices();
   }
 
+  void updateRealDeviceActivity({
+    required String deviceName,
+    required String osName,
+    required String location,
+    required String type,
+  }) {
+    if (_devices.isEmpty) return;
+    final now = DateTime.now();
+    final date = "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
+    final time = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+
+    // Reemplazamos el device mock 0 por el real
+    _devices[0] = TrustedDevice(
+      id: 'DEV-REAL',
+      name: deviceName,
+      type: type,
+      os: osName,
+      associatedApp: 'Authenticator (Local)',
+      status: 'Dispositivo confiable',
+      lastConnectionDate: date,
+      lastConnectionTime: time,
+      location: location,
+    );
+
+    // Registramos la actividad en el timeline
+    final realActivity = SecurityActivity(
+      date: 'Hoy',
+      time: time,
+      ip: '127.0.0.1 (Local)',
+      device: deviceName,
+      location: location,
+      event: 'Identidad validada y acceso concedido',
+      status: EventStatus.success,
+    );
+
+    if (_activitiesMap.containsKey('DEV-REAL')) {
+      _activitiesMap['DEV-REAL']!.insert(0, realActivity);
+    } else {
+      _activitiesMap['DEV-REAL'] = [realActivity, ...getMockActivity('DEV-01')];
+    }
+  }
+
   List<SecurityLog> getMockLogs() {
     return [
       SecurityLog(

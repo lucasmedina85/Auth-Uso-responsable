@@ -120,7 +120,7 @@ class LogsScreen extends StatelessWidget {
     final logs = _getSimulatedLogs();
 
     return Scaffold(
-      backgroundColor: AppColors.neutralLightGray,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           'Log Estado de Situación',
@@ -141,7 +141,7 @@ class LogsScreen extends StatelessWidget {
             // Header Summary Banner
             Container(
               padding: const EdgeInsets.all(16),
-              color: AppColors.deepGraphite,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
               child: Row(
                 children: [
                   const Icon(Icons.receipt_long_rounded, color: AppColors.industrialBlue, size: 30),
@@ -197,7 +197,7 @@ class LogsScreen extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppColors.deepGraphite,
+                              color: Theme.of(context).textTheme.bodyLarge?.color,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -216,7 +216,7 @@ class LogsScreen extends StatelessWidget {
                               style: GoogleFonts.montserrat(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.deepGraphite,
+                                color: Theme.of(context).textTheme.bodyLarge?.color,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),

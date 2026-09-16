@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import '../../logic/secure_storage_service.dart';
 import '../../core/theme/design_tokens.dart';
 import '../widgets/buttons.dart';
 import '../widgets/inputs.dart';
@@ -45,8 +46,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 ),
               ),
             );
+            return;
           }
-          return; // Stop execution, don't show welcome screen
         }
         _androidVersion = androidInfo.version.release;
       } else {
@@ -55,6 +56,18 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       }
     } catch (e) {
       // Ignore
+    }
+    // CU-0010: Check if session is already active (5 min local persistence)
+    final secureStorage = SecureStorageService();
+    final isLoggedIn = await secureStorage.isLoggedIn();
+    if (isLoggedIn && mounted) {
+      final creds = await secureStorage.getCredentials();
+      Navigator.pushReplacementNamed(
+        context, 
+        '/dashboard', 
+        arguments: creds['username'] ?? 'Usuario',
+      );
+      return;
     }
 
     if (mounted) {
@@ -201,33 +214,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               
               const SizedBox(height: DesignTokens.spacing24),
               
-              // Login Link
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    '¿Ya tenés una cuenta? ',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pushNamed(context, '/login');
-                    },
-                    child: Text(
-                      'Iniciar sesión',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.primaryColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: DesignTokens.spacing40),
-              
               // Legal Text
               Text(
                 'Al continuar, declarás haber leído nuestros ',
@@ -236,8 +222,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                alignment: WrapAlignment.center,
                 children: [
                   GestureDetector(
                     onTap: () {

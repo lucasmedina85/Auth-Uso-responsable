@@ -36,6 +36,27 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+  <script src="zxing.js"></script>
+  <script>
+    window.scanPdf417Wasm = async function(fileData) {
+      if (typeof Module === 'undefined' || !Module._malloc) {
+        console.error("WASM Module not loaded yet");
+        return null;
+      }
+      try {
+        var buffer = Module._malloc(fileData.length);
+        Module.HEAPU8.set(fileData, buffer);
+        var result = Module.readBarcodeFromPng(buffer, fileData.length, false, 'PDF_417');
+        Module._free(buffer);
+        if (result && result.text) {
+          return result.text;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      return null;
+    };
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

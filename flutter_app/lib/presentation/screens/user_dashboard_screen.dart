@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 import '../../core/theme/design_tokens.dart';
 import '../widgets/security_score.dart';
-
+import '../widgets/shared_bottom_nav_bar.dart';
 
 /// Screen 39 - User Dashboard
 class UserDashboardScreen extends StatefulWidget {
@@ -13,6 +15,30 @@ class UserDashboardScreen extends StatefulWidget {
 
 class _UserDashboardScreenState extends State<UserDashboardScreen> {
   int _currentIndex = 0;
+  String _lastConnection = 'Cargando...';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLastConnectionTime();
+  }
+
+  Future<void> _loadLastConnectionTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? isoDate = prefs.getString('last_connection_time');
+    
+    if (isoDate != null) {
+      final DateTime date = DateTime.parse(isoDate);
+      final String formattedDate = DateFormat("dd/MM/yyyy, hh:mm a").format(date);
+      setState(() {
+        _lastConnection = 'Última vez: $formattedDate';
+      });
+    } else {
+      setState(() {
+        _lastConnection = 'Última vez: Nunca';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +116,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                           ),
                           const SizedBox(height: DesignTokens.spacing4),
                           Text(
-                            'Última vez: Hoy, 10:45 AM',
+                            _lastConnection,
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
@@ -119,24 +145,8 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                   ),
                   const SizedBox(width: DesignTokens.spacing16),
                   Expanded(
-                    child: _buildActionCard(context, Icons.history, 'Actividad', () {
-                      Navigator.pushNamed(context, '/device_activity', arguments: {'email': displayName});
-                    }),
-                  ),
-                ],
-              ),
-              const SizedBox(height: DesignTokens.spacing16),
-              Row(
-                children: [
-                  Expanded(
                     child: _buildActionCard(context, Icons.devices, 'Dispositivos\nConfiables', () {
                       Navigator.pushNamed(context, '/trusted_devices');
-                    }),
-                  ),
-                  const SizedBox(width: DesignTokens.spacing16),
-                  Expanded(
-                    child: _buildActionCard(context, Icons.security, 'Seguridad', () {
-                      Navigator.pushNamed(context, '/change_password');
                     }),
                   ),
                 ],
@@ -145,40 +155,9 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          if (index == 0) return;
-          if (index == 1) {
-            Navigator.pushNamed(context, '/device_activity', arguments: {'email': displayName});
-          } else if (index == 2) {
-            Navigator.pushNamed(context, '/change_password');
-          } else if (index == 3) {
-            _showSettingsBottomSheet(context);
-          }
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Inicio',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.analytics_outlined),
-            selectedIcon: Icon(Icons.analytics),
-            label: 'Actividad',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.security_outlined),
-            selectedIcon: Icon(Icons.security),
-            label: 'Seguridad',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'Ajustes',
-          ),
-        ],
+      bottomNavigationBar: SharedBottomNavBar(
+        currentIndex: 0,
+        displayName: displayName,
       ),
     );
   }
@@ -200,71 +179,19 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
           children: [
             Icon(icon, color: theme.primaryColor, size: 28),
             const SizedBox(height: DesignTokens.spacing16),
-            Text(
-              title,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                title,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  void _showSettingsBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(DesignTokens.radiusLarge)),
-      ),
-      builder: (context) {
-        final theme = Theme.of(context);
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(DesignTokens.spacing24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Ajustes',
-                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: DesignTokens.spacing24),
-                ListTile(
-                  leading: const Icon(Icons.dark_mode_outlined),
-                  title: const Text('Modo Oscuro'),
-                  trailing: Switch(
-                    value: theme.brightness == Brightness.dark,
-                    onChanged: (val) {
-                      // Note: In a real app this would call a ThemeProvider.
-                      // For this prototype, we'll just show a snackbar.
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Cambio de tema no implementado en este prototipo sin estado global.')),
-                      );
-                    },
-                  ),
-                ),
-                const Divider(),
-                ListTile(
-                  leading: Icon(Icons.logout, color: theme.colorScheme.error),
-                  title: Text(
-                    'Cerrar sesión',
-                    style: TextStyle(color: theme.colorScheme.error, fontWeight: FontWeight.bold),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.pushReplacementNamed(context, '/');
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

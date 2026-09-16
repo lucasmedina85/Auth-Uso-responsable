@@ -181,11 +181,14 @@ class ApplicationQrScreen extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
-        Text(
-          value,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: isStatus ? theme.primaryColor : theme.colorScheme.onSurface,
-            fontWeight: FontWeight.bold,
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: isStatus ? theme.primaryColor : theme.colorScheme.onSurface,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ],

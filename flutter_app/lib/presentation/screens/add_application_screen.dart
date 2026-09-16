@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../logic/security_data_service.dart';
+import '../widgets/totp_components.dart';
 import '../widgets/buttons.dart';
 import '../widgets/inputs.dart';
 
@@ -98,6 +99,15 @@ class _AddApplicationScreenState extends State<AddApplicationScreen> {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
+              const SizedBox(height: DesignTokens.spacing24),
+              ApplicationCard(
+                appName: 'Mi Autenticador',
+                deviceName: 'Este dispositivo',
+                applicationId: 'auth_key',
+                onCopy: () {},
+                onMenuTap: () {},
+              ),
+              const SizedBox(height: DesignTokens.spacing32),
               const SizedBox(height: DesignTokens.spacing32),
               
               StandardTextField(

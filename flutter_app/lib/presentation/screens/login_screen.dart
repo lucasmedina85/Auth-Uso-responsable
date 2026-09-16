@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
 import '../widgets/buttons.dart';
+import '../../logic/secure_storage_service.dart';
 import '../widgets/inputs.dart';
 import '../widgets/auth_components.dart';
 
@@ -38,6 +39,13 @@ class _LoginScreenState extends State<LoginScreen> {
     // Simulate API call
     await Future.delayed(const Duration(seconds: 2));
     
+    // Save credentials to Secure Storage (Opcion A)
+    final secureStorage = SecureStorageService();
+    await secureStorage.saveCredentials(
+      _emailController.text,
+      _passwordController.text,
+    );
+
     if (mounted) {
       setState(() {
         _isProcessing = false;

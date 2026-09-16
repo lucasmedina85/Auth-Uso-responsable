@@ -10,6 +10,7 @@ import 'presentation/screens/terms_screen.dart';
 import 'presentation/screens/privacy_screen.dart';
 import 'presentation/screens/registration_success_screen.dart';
 import 'presentation/screens/permission_screen.dart';
+import "presentation/screens/manual_ocr_screen.dart";
 import 'presentation/screens/dni_capture_screen.dart';
 import 'presentation/screens/face_liveness_screen.dart';
 import 'presentation/screens/biometric_fingerprint_screen.dart';
@@ -25,9 +26,16 @@ import 'presentation/screens/security_history_screen.dart';
 import 'presentation/screens/trusted_devices_screen.dart';
 import 'presentation/screens/device_activity_timeline_screen.dart';
 import 'presentation/screens/change_password_screen.dart';
+import 'presentation/screens/validation_config_screen.dart';
+import 'presentation/screens/transfer_accounts_screen.dart';
+import 'presentation/widgets/session_manager.dart';
+final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
+
 void main() {
   runApp(const AuthenticatorApp());
 }
+
+final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
 
 /// Principal Application Authenticator
 class AuthenticatorApp extends StatelessWidget {
@@ -35,13 +43,19 @@ class AuthenticatorApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'AUTHENTICATOR',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
-      initialRoute: '/splash',
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (_, ThemeMode currentMode, __) {
+        return SessionManager(
+          navigatorKey: globalNavigatorKey,
+          child: MaterialApp(
+            navigatorKey: globalNavigatorKey,
+          title: 'AUTHENTICATOR',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: currentMode,
+          initialRoute: '/splash',
       routes: {
         '/splash': (context) => const SplashScreen(),
         '/device_security': (context) => const DeviceSecurityScreen(),
@@ -58,7 +72,16 @@ class AuthenticatorApp extends StatelessWidget {
             Navigator.pushReplacementNamed(context, '/face_liveness');
           },
           onManualFallback: () {
-            // Fallback action
+            Navigator.pushReplacementNamed(context, '/manual_ocr');
+          },
+        ),
+        '/manual_ocr': (context) => ManualOcrScreenFlutter(
+          onSubmit: (dni, tramit, imagePath) {
+            // Navigate to face liveness when manual input is done
+            Navigator.pushReplacementNamed(context, '/face_liveness');
+          },
+          onCancel: () {
+            Navigator.pushReplacementNamed(context, '/dni_capture');
           },
         ),
         '/face_liveness': (context) => const FaceLivenessScreen(),
@@ -74,9 +97,14 @@ class AuthenticatorApp extends StatelessWidget {
         '/trusted_devices': (context) => const TrustedDevicesScreen(),
         '/device_activity': (context) => const DeviceActivityTimelineScreen(),
         '/change_password': (context) => const ChangePasswordScreen(),
+        '/validation_config': (context) => const ValidationConfigScreen(),
+        '/transfer_accounts': (context) => const TransferAccountsScreen(),
         
         // Legacy routes kept for compatibility
         '/logs': (context) => const LogsScreen(),
+      },
+    ),
+        );
       },
     );
   }

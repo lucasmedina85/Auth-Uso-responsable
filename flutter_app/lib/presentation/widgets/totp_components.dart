@@ -138,6 +138,7 @@ class _ApplicationCardState extends State<ApplicationCard> {
                       widget.appName,
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
+                        color: theme.brightness == Brightness.dark ? Colors.grey[400] : Colors.grey[800],
                       ),
                     ),
                     Text(

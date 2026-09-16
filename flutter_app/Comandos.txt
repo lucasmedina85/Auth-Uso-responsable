@@ -5,3 +5,19 @@ cd ..
 flutter clean
 flutter pub get
 flutter build apk --release
+
+
+==================================
+PASO A PASO - PRESENTACION
+==================================
+1. Ir a la Carpeta
+cd "/home/lucas/Documentos/USAL/SIP | Seminario de Integracion Prof/Auth - Aplicativo/flutter_app"
+
+
+2. Iniciar en cualquier navegador en localhost:8080
+flutter run -d web-server --web-port 8080
+
+Luego abres cualquier navegador web e ingresas a: 
+http://localhost:8080
+
+Haz clic en el ícono de Modo Dispositivo (o presiona Ctrl + Shift + M)

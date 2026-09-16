@@ -1,12 +1,16 @@
+import "package:flutter/foundation.dart" show kIsWeb;
+import "dart:io" as io;
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
 import '../../core/theme/design_tokens.dart';
 import '../../logic/security_data_service.dart';
+import '../../logic/face_biometric_service.dart';
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import '../widgets/buttons.dart';
 
-enum LivenessState { initializing, activeChallenge, passiveAnalysis, processing, success, failed }
+enum LivenessState { initializing, readyToCapture, awaitingConfirmation, processing, success, failed, error }
 
 /// Screens 22-28 - Facial Biometrics & Liveness
 class FaceLivenessScreen extends StatefulWidget {
@@ -19,17 +23,15 @@ class FaceLivenessScreen extends StatefulWidget {
 class _FaceLivenessScreenState extends State<FaceLivenessScreen> {
   LivenessState _state = LivenessState.initializing;
   String _instruction = "Preparando cámara...";
-  int _challengeIndex = 0;
-  final List<String> _challenges = [
-    "Mira directamente a la cámara",
-    "Parpadea dos veces",
-    "Gira la cabeza ligeramente a la derecha"
-  ];
 
   CameraController? _cameraController;
   bool _isCameraInitialized = false;
   bool _isRecordingVideo = false;
   String? _recordedVideoPath;
+
+  final _biometricService = FaceBiometricService();
+  bool _isProcessingFrame = false;
+  XFile? _capturedImageFile;
 
   @override
   void initState() {
@@ -39,111 +41,154 @@ class _FaceLivenessScreenState extends State<FaceLivenessScreen> {
 
   Future<void> _setupCameraAndStartFlow() async {
     try {
-      final status = await Permission.camera.request();
-      if (status.isGranted) {
-        final cameras = await availableCameras();
-        if (cameras.isNotEmpty) {
-          final frontCam = cameras.firstWhere(
-            (cam) => cam.lensDirection == CameraLensDirection.front,
-            orElse: () => cameras.first,
-          );
+      PermissionStatus status = await Permission.camera.status;
+      if (!status.isGranted) {
+        status = await Permission.camera.request();
+      }
 
-          final controller = CameraController(
-            frontCam,
-            ResolutionPreset.medium,
-            enableAudio: false,
-          );
+      if (!status.isGranted) {
+        if (mounted) {
+          setState(() {
+            _state = LivenessState.error;
+            _instruction = "Permiso de cámara denegado. Es obligatorio para continuar.";
+          });
+        }
+        return;
+      }
+      
+      final cameras = await availableCameras();
+      if (cameras.isNotEmpty) {
+        final frontCam = cameras.firstWhere(
+          (cam) => cam.lensDirection == CameraLensDirection.front,
+          orElse: () => cameras.first,
+        );
 
-          await controller.initialize();
-          if (mounted) {
-            setState(() {
-              _cameraController = controller;
-              _isCameraInitialized = true;
-            });
-          }
+        final controller = CameraController(
+          frontCam,
+          ResolutionPreset.medium,
+          enableAudio: false,
+        );
+
+        await controller.initialize();
+        try {
+          await controller.setFlashMode(FlashMode.off);
+        } catch (_) {
+          // Ignorar si la cámara frontal no soporta flash
+        }
+        
+        if (mounted) {
+          setState(() {
+            _cameraController = controller;
+            _isCameraInitialized = true;
+          });
+          _prepareForCapture();
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _state = LivenessState.error;
+            _instruction = "No se encontró cámara en el dispositivo.";
+          });
         }
       }
-    } catch (_) {
-      // Fallback gracefully if camera is unavailable or permission denied
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _state = LivenessState.error;
+          _instruction = "Error al inicializar cámara: $e";
+        });
+      }
     }
-
-    _startFlow();
   }
 
   @override
   void dispose() {
     _cameraController?.dispose();
+    _biometricService.dispose();
     super.dispose();
   }
 
-  void _startFlow() async {
-    // 1. Initializing
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Start Recording Video if camera initialized
-    if (_cameraController != null && _cameraController!.value.isInitialized) {
-      try {
-        await _cameraController!.startVideoRecording();
-        if (mounted) {
-          setState(() {
-            _isRecordingVideo = true;
-          });
-        }
-      } catch (_) {}
-    }
-    
-    // 2. Active Liveness Challenges
-    for (int i = 0; i < _challenges.length; i++) {
-      if (!mounted) return;
-      setState(() {
-        _state = LivenessState.activeChallenge;
-        _challengeIndex = i;
-        _instruction = _challenges[i];
-      });
-      await Future.delayed(const Duration(seconds: 3));
-    }
-
-    // Stop recording video and store it in application state
-    if (_cameraController != null && _cameraController!.value.isRecordingVideo) {
-      try {
-        final XFile videoFile = await _cameraController!.stopVideoRecording();
-        _recordedVideoPath = videoFile.path;
-        SecurityDataService().livenessVideoPath = _recordedVideoPath;
-        if (mounted) {
-          setState(() {
-            _isRecordingVideo = false;
-          });
-        }
-      } catch (_) {}
-    } else {
-      // Simulation path fallback
-      _recordedVideoPath = '/tmp/liveness_proof_video.mp4';
-      SecurityDataService().livenessVideoPath = _recordedVideoPath;
-    }
-
+  void _prepareForCapture() {
     if (!mounted) return;
+    setState(() {
+      _capturedImageFile = null;
+      _state = LivenessState.readyToCapture;
+      _instruction = "Ubique su rostro en el óvalo y presione 'Capturar'";
+    });
+  }
+
+  void _captureFace() async {
+    if (!mounted || _cameraController == null || !_cameraController!.value.isInitialized) return;
     
-    // 3. Passive Liveness & Processing
+    setState(() {
+      _isProcessingFrame = true;
+    });
+
+    try {
+      final imageFile = await _cameraController!.takePicture();
+      if (mounted) {
+        setState(() {
+          _capturedImageFile = imageFile;
+          _state = LivenessState.awaitingConfirmation;
+          _instruction = "¿La captura de tu rostro es nítida y correcta?";
+          _isProcessingFrame = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isProcessingFrame = false;
+          _instruction = "Error al capturar. Intente de nuevo.";
+        });
+      }
+    }
+  }
+
+  void _processLivenessAndMatch() async {
+    if (!mounted || _capturedImageFile == null) return;
+    
     setState(() {
       _state = LivenessState.processing;
-      _instruction = "Analizando presencia y verificando identidad...";
+      _instruction = "Analizando liveness...\nCotejando contra RENAPER (1:1)...";
     });
-    
-    await Future.delayed(const Duration(seconds: 3));
-    
-    if (!mounted) return;
-    
-    // 4. Success -> Next Screen
-    setState(() {
-      _state = LivenessState.success;
-      _instruction = "¡Identidad Verificada!";
-    });
-    
-    await Future.delayed(const Duration(seconds: 1));
-    
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, '/fingerprint');
+
+    try {
+      final inputImage = InputImage.fromFilePath(_capturedImageFile!.path);
+      final face = await _biometricService.checkPassiveLiveness(inputImage);
+      
+      if (face == null) {
+        // Falló liveness
+        _showFailedMatch("No se detectó un rostro real válido (Liveness fallido).");
+        return;
+      }
+
+      final isMatch = await _biometricService.matchWithRenaperTemplate(face);
+      
+      if (!mounted) return;
+
+      if (isMatch) {
+        setState(() {
+          _state = LivenessState.success;
+          _instruction = "¡Identidad Verificada Exitosamente!";
+        });
+        
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) Navigator.pushReplacementNamed(context, '/fingerprint');
+      } else {
+        final attemptsLeft = FaceBiometricService.maxFailedAttempts - _biometricService.failedAttempts;
+        _showFailedMatch("Cotejo Fallido.\nEl rostro no coincide con el DNI.\nIntentos restantes: \$attemptsLeft");
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _showFailedMatch(e.toString());
     }
+  }
+
+  void _showFailedMatch(String message) {
+    setState(() {
+      _state = LivenessState.failed;
+      _instruction = message;
+    });
   }
 
   @override
@@ -156,8 +201,14 @@ class _FaceLivenessScreenState extends State<FaceLivenessScreen> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // 1. Live Camera Feed
-            if (_isCameraInitialized && _cameraController != null)
+            // 1. Live Camera Feed or Captured Image
+            if (_state == LivenessState.awaitingConfirmation && _capturedImageFile != null)
+              Positioned.fill(
+                child: kIsWeb
+                    ? Image.network(_capturedImageFile!.path, fit: BoxFit.cover)
+                    : Image.file(io.File(_capturedImageFile!.path), fit: BoxFit.cover),
+              )
+            else if (_isCameraInitialized && _cameraController != null)
               Positioned.fill(
                 child: AspectRatio(
                   aspectRatio: _cameraController!.value.aspectRatio,
@@ -241,20 +292,6 @@ class _FaceLivenessScreenState extends State<FaceLivenessScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (_state == LivenessState.activeChallenge)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
-                        child: Text(
-                          'DESAFÍO ${_challengeIndex + 1} DE ${_challenges.length}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                      ),
-                    
                     if (_state == LivenessState.processing)
                       const Padding(
                         padding: EdgeInsets.only(bottom: DesignTokens.spacing16),
@@ -300,22 +337,73 @@ class _FaceLivenessScreenState extends State<FaceLivenessScreen> {
                         ),
                       ),
                     
-                    if (_state == LivenessState.failed) ...[
+                    if (_state == LivenessState.readyToCapture) ...[
                       const SizedBox(height: DesignTokens.spacing24),
                       PrimaryButton(
-                        text: 'Intentar de Nuevo',
-                        onPressed: () {
-                          setState(() {
-                            _state = LivenessState.initializing;
-                            _instruction = "Preparando cámara...";
-                          });
-                          _startFlow();
+                        text: 'Capturar Rostro',
+                        onPressed: _isProcessingFrame ? null : _captureFace,
+                        isLoading: _isProcessingFrame,
+                      ),
+                    ],
+
+                    if (_state == LivenessState.awaitingConfirmation) ...[
+                      const SizedBox(height: DesignTokens.spacing24),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.white54),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                              ),
+                              onPressed: _prepareForCapture,
+                              child: const Text('Reintentar', style: TextStyle(color: Colors.white)),
+                            ),
+                          ),
+                          const SizedBox(width: DesignTokens.spacing16),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColorsLight.success,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                              ),
+                              onPressed: _processLivenessAndMatch,
+                              child: const Text('Sí, es correcta', style: TextStyle(color: Colors.white)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+
+                    if (_state == LivenessState.error) ...[
+                      const SizedBox(height: DesignTokens.spacing24),
+                      PrimaryButton(
+                        text: 'Intentar de Nuevo / Volver',
+                        onPressed: () async {
+                          if (await Permission.camera.isPermanentlyDenied) {
+                            openAppSettings();
+                          } else {
+                            Navigator.pop(context);
+                          }
                         },
                       ),
+                    ],
+
+                    if (_state == LivenessState.failed) ...[
+                      const SizedBox(height: DesignTokens.spacing24),
+                      if (_biometricService.failedAttempts < FaceBiometricService.maxFailedAttempts)
+                        PrimaryButton(
+                          text: 'Intentar de Nuevo',
+                          onPressed: () {
+                            _prepareForCapture();
+                          },
+                        ),
                       const SizedBox(height: DesignTokens.spacing8),
                       TextualButton(
-                        text: 'Cancelar',
-                        onPressed: () => Navigator.pop(context),
+                        text: _biometricService.failedAttempts >= FaceBiometricService.maxFailedAttempts 
+                            ? 'Volver al Inicio (Bloqueado)' 
+                            : 'Cancelar',
+                        onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/splash', (route) => false),
                       ),
                     ]
                   ],

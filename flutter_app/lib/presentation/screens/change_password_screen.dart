@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../core/theme/app_theme.dart';
 import '../widgets/buttons.dart';
+import '../widgets/shared_bottom_nav_bar.dart';
 import '../widgets/inputs.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -231,6 +232,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: const SharedBottomNavBar(
+        currentIndex: 2,
       ),
     );
   }

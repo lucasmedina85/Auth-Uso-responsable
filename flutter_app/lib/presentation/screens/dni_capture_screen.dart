@@ -5,8 +5,11 @@ import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../logic/security_data_service.dart';
+import '../../logic/ocr_processor.dart';
+import '../../logic/document_validator.dart';
+import '../../logic/age_calculator.dart';
 import '../widgets/buttons.dart';
-
+import 'package:intl/intl.dart';
 enum FlutterCaptureStep { front, validateFront, back, validateBack, cameraError }
 
 /// Screens 07-12 - DNI Capture Flow
@@ -34,6 +37,12 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
   bool _isCameraInitialized = false;
   String? _cameraErrorMessage;
 
+  final OcrProcessor _ocrProcessor = OcrProcessor();
+  final AgeCalculator _ageCalculator = AgeCalculator();
+  final DocumentValidator _docValidator = DocumentValidator();
+  int _ocrFailures = 0;
+  DniBiographicData? _scannedData;
+
   @override
   void initState() {
     super.initState();
@@ -47,7 +56,10 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
     });
 
     try {
-      final permissionStatus = await Permission.camera.request();
+      PermissionStatus permissionStatus = await Permission.camera.status;
+      if (!permissionStatus.isGranted) {
+        permissionStatus = await Permission.camera.request();
+      }
 
       if (!permissionStatus.isGranted) {
         if (mounted) {
@@ -84,6 +96,11 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
       );
 
       await controller.initialize();
+      try {
+        await controller.setFlashMode(FlashMode.off);
+      } catch (_) {
+        // Ignore if flash is not supported
+      }
 
       if (mounted) {
         setState(() {
@@ -101,7 +118,7 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
           _isProcessing = false;
           _isCameraInitialized = false;
           _step = FlutterCaptureStep.cameraError;
-          _cameraErrorMessage = 'Error al acceder a la cámara: ${e.toString()}';
+          _cameraErrorMessage = 'Error fatal de hardware al acceder a la cámara: ${e.toString()}';
         });
       }
     }
@@ -110,7 +127,16 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
   @override
   void dispose() {
     _cameraController?.dispose();
+    _ocrProcessor.dispose();
     super.dispose();
+  }
+
+  Future<void> _cleanupAndNavigate(VoidCallback action) async {
+    if (_cameraController != null) {
+      await _cameraController!.dispose();
+      _cameraController = null;
+    }
+    action();
   }
 
   void _handleCapture() async {
@@ -149,21 +175,17 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
         setState(() {
           _isProcessing = false;
           _step = FlutterCaptureStep.cameraError;
-          _cameraErrorMessage = 'Fallo en la captura de foto: ${e.toString()}';
+          _cameraErrorMessage = 'Fallo crítico en hardware de cámara: ${e.toString()}';
         });
+        _cameraController?.dispose();
+        _cameraController = null;
+        _isCameraInitialized = false;
       }
     }
   }
 
-  void _handleValidation(bool isAccepted) {
-    if (isAccepted) {
-      if (_step == FlutterCaptureStep.validateFront) {
-        setState(() => _step = FlutterCaptureStep.back);
-      } else if (_step == FlutterCaptureStep.validateBack) {
-        widget.onComplete(_frontPath!, _backPath!);
-      }
-    } else {
-      // Retake
+  void _handleValidation(bool isAccepted) async {
+    if (!isAccepted) {
       if (_step == FlutterCaptureStep.validateFront) {
         setState(() {
           _frontPath = null;
@@ -175,7 +197,221 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
           _step = FlutterCaptureStep.back;
         });
       }
+      return;
     }
+
+    setState(() => _isProcessing = true);
+
+    if (_step == FlutterCaptureStep.validateFront) {
+      final data = await _ocrProcessor.processFrontImage(_frontPath!);
+      if (mounted) setState(() => _isProcessing = false);
+
+      if (data != null) {
+        _ocrFailures = 0;
+        _scannedData = data; // Guardar datos PDF417 (Frente)
+        if (mounted) setState(() => _step = FlutterCaptureStep.back);
+      } else {
+        _ocrFailures++;
+        if (_ocrFailures >= 3) {
+          _ocrFailures = 0; // Reset for back step
+          if (mounted) setState(() => _step = FlutterCaptureStep.back);
+        } else {
+          _showErrorSnackBar('No pudimos leer el código de barras. Intentá nuevamente (${3 - _ocrFailures} intentos restantes).');
+          if (mounted) {
+            setState(() {
+              _frontPath = null;
+              _step = FlutterCaptureStep.front;
+            });
+          }
+        }
+      }
+    } else if (_step == FlutterCaptureStep.validateBack) {
+      final backData = await _ocrProcessor.processBackImage(_backPath!);
+      if (mounted) setState(() => _isProcessing = false);
+
+      // Combinar datos del frente (PDF417) y dorso (MRZ)
+      // Si alguno falló, usamos el otro. Priorizamos el frente porque PDF417 suele tener nombres completos
+      DniBiographicData? data = _scannedData ?? backData;
+
+      if (data != null) {
+        // Enriquecer con número de trámite del MRZ si PDF417 no lo trajo, o viceversa
+        if (backData != null && data.tramitNumber == null) {
+          data = data.copyWith(tramitNumber: backData.tramitNumber);
+        }
+        
+        // CU-0006: Detección de manipulación simulada (Si el DNI contiene muchos ceros o falla un hash)
+        if (data.documentNumber == "00000000" || data.documentNumber.contains("123456")) {
+          _showBlockingDialog(
+            title: 'Manipulación Detectada',
+            message: 'Se ha detectado una posible manipulación o falsificación en el código PDF417 del documento. Se bloqueó la autenticación.',
+            icon: Icons.gpp_bad,
+          );
+          return;
+        }
+
+        // CU-0005: Validación de vigencia (mostrar fechas)
+        if (!_docValidator.isDocumentValid(data.expirationDate)) {
+          final nowFormat = DateFormat('dd/MM/yyyy').format(DateTime.now());
+          final expFormat = DateFormat('dd/MM/yyyy').format(data.expirationDate);
+          
+          _showBlockingDialog(
+            title: 'Documento Vencido',
+            message: 'La fecha de vigencia de tu DNI ($expFormat) es menor a la fecha actual ($nowFormat). No se permite continuar.',
+            icon: Icons.event_busy,
+          );
+          return;
+        }
+
+        if (!_ageCalculator.isAdult(data.birthDate)) {
+          final birthFormat = DateFormat('dd/MM/yyyy').format(data.birthDate);
+          _showBlockingDialog(
+            title: 'Acceso Denegado',
+            message: 'La fecha de nacimiento ($birthFormat) indica que el titular es menor de 18 años. Solo los mayores de edad pueden utilizar la aplicación (CU-0007).',
+            icon: Icons.block,
+          );
+          return;
+        }
+
+        // CU-0003 y CU-0004: Mostrar datos extraídos y pedir confirmación
+        _showDataConfirmationDialog(data);
+
+      } else {
+        _ocrFailures++;
+        if (_ocrFailures >= 3) {
+          _cleanupAndNavigate(() => widget.onManualFallback());
+        } else {
+          _showErrorSnackBar('No pudimos leer los datos del reverso. Intentá nuevamente (${3 - _ocrFailures} intentos restantes).');
+          if (mounted) {
+            setState(() {
+              _backPath = null;
+              _step = FlutterCaptureStep.back;
+            });
+          }
+        }
+      }
+    }
+  }
+
+  void _showBlockingDialog({required String title, required String message, required IconData icon}) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.black87,
+        title: Row(
+          children: [
+            Icon(icon, color: Theme.of(context).colorScheme.error),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(title, style: const TextStyle(color: Colors.white, fontSize: 18)),
+            ),
+          ],
+        ),
+        content: Text(message, style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              // Reset the flow on block, or navigate back
+              setState(() {
+                _backPath = null;
+                _step = FlutterCaptureStep.back;
+              });
+            },
+            child: const Text('Entendido', style: TextStyle(color: AppColorsLight.primary)),
+          )
+        ],
+      ),
+    );
+  }
+
+  void _showDataConfirmationDialog(DniBiographicData data) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Must select an option
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.black87,
+        title: const Text('Confirmar Datos Extraídos', style: TextStyle(color: Colors.white)),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Verificá que los datos leídos del DNI sean correctos:\n', style: TextStyle(color: Colors.white70)),
+              _buildDataRow('Apellido', data.lastName),
+              _buildDataRow('Nombre', data.firstName),
+              _buildDataRow('DNI', data.documentNumber),
+              _buildDataRow('Sexo', data.gender),
+              _buildDataRow('Fecha de Nac.', DateFormat('dd/MM/yyyy').format(data.birthDate)),
+              if (data.tramitNumber != null) 
+                _buildDataRow('Trámite', data.tramitNumber!),
+              _buildDataRow('Vigencia', DateFormat('dd/MM/yyyy').format(data.expirationDate)),
+              const SizedBox(height: 16),
+              if (_ageCalculator.isAdult(data.birthDate) && _docValidator.isDocumentValid(data.expirationDate))
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.green.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.verified_user, color: Colors.green, size: 20),
+                      SizedBox(width: 8),
+                      Expanded(child: Text('Es mayor de edad y el documento está vigente.', style: TextStyle(color: Colors.green, fontSize: 13))),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 16),
+              const Text('¿Son correctos los datos?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _cleanupAndNavigate(() => widget.onManualFallback());
+            },
+            child: const Text('No, ingresar manual', style: TextStyle(color: Colors.redAccent)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColorsLight.success),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              // CU-0003: User confirms data
+              _cleanupAndNavigate(() => widget.onComplete(_frontPath!, _backPath!));
+            },
+            child: const Text('Sí, son correctos', style: TextStyle(color: Colors.white)),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+          children: [
+            TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white70)),
+            TextSpan(text: value),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Theme.of(context).colorScheme.error,
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   Widget _buildCapturedPreview(String imagePath) {
@@ -456,14 +692,9 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
                 ),
               ] else if (_step == FlutterCaptureStep.cameraError) ...[
                 PrimaryButton(
-                  text: 'Solicitar Permiso de Cámara',
+                  text: 'Reintentar Acceso a Cámara',
                   onPressed: _initializeCameraWithPermission,
                   isLoading: _isProcessing,
-                ),
-                const SizedBox(height: DesignTokens.spacing12),
-                TextualButton(
-                  text: 'Ingresar Datos Manualmente',
-                  onPressed: widget.onManualFallback,
                 ),
               ] else ...[
                 PrimaryButton(
@@ -477,7 +708,7 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
                 const SizedBox(height: DesignTokens.spacing12),
                 TextualButton(
                   text: 'Ingresar Datos Manualmente',
-                  onPressed: widget.onManualFallback,
+                  onPressed: () => _cleanupAndNavigate(widget.onManualFallback),
                 ),
               ],
             ],
