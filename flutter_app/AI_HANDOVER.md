@@ -45,3 +45,24 @@ Si vas a modificar el código, respeta estas correcciones que costaron horas de 
 1. **Backend y Persistencia Real**: Reemplazar `SecurityDataService` por persistencia real (SQLite/Hive para almacenamiento local, y llamadas a API HTTP con JWT para la nube).
 2. **OCR Real**: Reemplazar los delays simulados en `MockOcrProcessor` con una integración real de OCR (Tesseract, Google Cloud Vision, o AWS Textract) para parsear el PDF417 del DNI argentino.
 3. **TOTP Real**: Actualmente `totp_components.dart` genera los 6 dígitos usando una semilla básica combinada con el `applicationId`. Se debe migrar al paquete `otp` o `dart_otp` usando claves secretas reales (Base32) generadas por el servidor.
+
+## 6. Requerimientos para la Próxima Versión (Sprint 4)
+Para la próxima iteración del proyecto, se ha establecido el siguiente recorrido y objetivos obligatorios a resolver:
+
+1. **Persistencia de usuarios en almacenamiento del dispositivo:**
+   - Implementar almacenamiento seguro (ej. `flutter_secure_storage` o SQLite/Hive cifrado) para guardar los perfiles de usuario, evitando perder el estado al cerrar la app.
+   
+2. **Conexión con otro aplicativo:**
+   - Diseñar e implementar el mecanismo de Deep Linking (App Links / Universal Links) o WebSockets para la comunicación segura entre esta app (Auth) y las plataformas externas de Juego Responsable que requieran la validación del TOTP.
+
+3. **Persistencia del código generado y visualización de dispositivos autorizados:**
+   - Consolidar la persistencia física de la llave maestra (semilla TOTP) en el dispositivo. 
+   - Mejorar o mantener el panel actual (`LinkedApplicationsScreen` y `TrustedDevicesScreen`) asegurando que los códigos se generen consistentemente a través de reinicios de la aplicación leyendo la semilla persistida.
+
+4. **Captura DNI Front - Error en Código de Barras (PDF417):**
+   - Refinar el algoritmo o flujo de la cámara frontal del DNI. 
+   - Asegurarse de que si el escáner del código de barras falla, el mensaje de error sea claro, y el mecanismo de *fallback* a lectura de texto u OCR manual actúe de manera eficiente sin frustrar al usuario.
+
+5. **Logs de Usuarios y Exportación CSV:**
+   - Migrar la pantalla de Actividad / Log de Seguridad (`SecurityHistoryScreen`) para que lea de una tabla local persistente.
+   - Implementar una funcionalidad de exportación a CSV (`csv` package) que permita al usuario (o administrador) guardar el registro de actividades (fecha, IP, evento, ubicación) en la carpeta de descargas del dispositivo.
