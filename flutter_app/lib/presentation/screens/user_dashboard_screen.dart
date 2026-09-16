@@ -160,11 +160,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                     }),
                   ),
                   const SizedBox(width: DesignTokens.spacing16),
-                  Expanded(
-                    child: _buildActionCard(context, Icons.add_to_home_screen, 'Agregar\nAplicación', () {
-                      Navigator.pushNamed(context, '/add_application');
-                    }),
-                  ),
+                  const Expanded(child: SizedBox()),
                 ],
               ),
             ],

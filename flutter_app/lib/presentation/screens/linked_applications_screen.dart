@@ -100,13 +100,6 @@ class _LinkedApplicationsScreenState extends State<LinkedApplicationsScreen> {
                 );
               },
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.pushNamed(context, '/add_application');
-        },
-        backgroundColor: theme.primaryColor,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
     );
   }
 

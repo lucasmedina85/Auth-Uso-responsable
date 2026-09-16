@@ -172,14 +172,6 @@ class _AuthenticatorDashboardScreenState extends State<AuthenticatorDashboardScr
     return Scaffold(
       appBar: AppBar(
         title: const Text('Authenticator'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: isClassHours ? null : () {
-              Navigator.pushNamed(context, '/add_application');
-            },
-          ),
-        ],
       ),
       body: SafeArea(
         child: isClassHours
@@ -275,7 +267,7 @@ class _AuthenticatorDashboardScreenState extends State<AuthenticatorDashboardScr
           ),
           const SizedBox(height: DesignTokens.spacing8),
           Text(
-            'Agregá una aplicación para generar códigos de acceso seguros.',
+            'Para vincular una aplicación, debes realizar el proceso de verificación de identidad.',
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
@@ -283,9 +275,9 @@ class _AuthenticatorDashboardScreenState extends State<AuthenticatorDashboardScr
           ),
           const SizedBox(height: DesignTokens.spacing48),
           PrimaryButton(
-            text: 'Agregar aplicación',
+            text: 'Verificar Identidad',
             onPressed: () {
-              Navigator.pushNamed(context, '/add_application');
+              Navigator.pushNamed(context, '/dni_capture');
             },
           ),
         ],

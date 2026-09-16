@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../core/theme/app_theme.dart';
 import '../widgets/buttons.dart';
+import '../widgets/totp_components.dart';
+import '../../logic/security_data_service.dart';
 
 class DeviceDetailsScreen extends StatelessWidget {
   const DeviceDetailsScreen({super.key});
@@ -9,8 +11,17 @@ class DeviceDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final args = ModalRoute.of(context)?.settings.arguments as Map<String, String>?;
-    final deviceName = args?['deviceName'] ?? 'Mi teléfono personal';
+    
+    final args = ModalRoute.of(context)?.settings.arguments;
+    String deviceName = 'Mi teléfono personal';
+    TrustedDevice? device;
+    
+    if (args is TrustedDevice) {
+      device = args;
+      deviceName = device.name;
+    } else if (args is Map) {
+      deviceName = args['deviceName'] ?? 'Mi teléfono personal';
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -64,29 +75,48 @@ class DeviceDetailsScreen extends StatelessWidget {
                   children: [
                     _buildInfoRow(context, 'Nombre', deviceName),
                     const Divider(height: 32),
-                    _buildInfoRow(context, 'Aplicaciones vinculadas', '3'),
+                    _buildInfoRow(context, device?.type == 'external' ? 'Tipo' : 'Aplicaciones vinculadas', device?.type == 'external' ? 'Aplicación (Externa)' : '3'),
                     const Divider(height: 32),
                     _buildInfoRow(
                       context, 
-                      'Estado', 
-                      'Activo', 
-                      valueColor: AppColorsLight.success,
+                      'Última conexión', 
+                      device != null ? '${device.lastConnectionDate} ${device.lastConnectionTime}' : 'Hoy, 14:30',
                     ),
                     const Divider(height: 32),
-                    _buildInfoRow(context, 'Última actividad', 'Hoy, 15:42'),
+                    _buildInfoRow(
+                      context,
+                      'Ubicación',
+                      device?.location ?? 'Buenos Aires, Argentina',
+                    ),
                     const Divider(height: 32),
                     _buildInfoRow(
-                      context, 
-                      'Nivel de seguridad', 
-                      'Alto', 
+                      context,
+                      'Estado',
+                      device?.status ?? 'Conectado',
                       valueColor: AppColorsLight.success,
-                      icon: Icons.shield,
                     ),
                   ],
                 ),
               ),
-              
-              const SizedBox(height: DesignTokens.spacing48),
+              const SizedBox(height: DesignTokens.spacing32),
+
+              if (device?.type == 'external' || device?.type == 'web') ...[
+                Text(
+                  'Código de Autenticación',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: DesignTokens.spacing16),
+                ApplicationCard(
+                  appName: deviceName,
+                  deviceName: device?.os ?? 'App vinculada',
+                  applicationId: device?.id ?? 'app_123',
+                  onCopy: () {},
+                  onMenuTap: () {},
+                ),
+                const SizedBox(height: DesignTokens.spacing32),
+              ],
               
               SecondaryButton(
                 text: 'Administrar dispositivo',
