@@ -3,12 +3,12 @@ package com.authenticator.domain;
 import java.util.Map;
 
 public class VerificationResult {
-    private String matchType; // e.g. FULL_MATCH, PARTIAL, NO_MATCH, ABANDONED, EXPIRED, PENDING
-    private int faceMatchScore; // 0 to 100
-    private int livenessScore; // 0 to 100
-    private boolean isLatestDocument;
+    private String matchType; // APPROVED, REJECTED, 5XX, TIMEOUT, PENDING, PROCESSING, FAILED
+    private int faceMatchScore; 
+    private int livenessScore; 
+    private Boolean isLatestDocument; // Tri-estado: true, false, null (UNKNOWN)
     private Map<String, Boolean> fieldValidations;
-    private Map<String, Object> providerRaw; // For internal logging only
+    private Map<String, Object> providerRaw; 
 
     public VerificationResult() {}
 
@@ -21,8 +21,8 @@ public class VerificationResult {
     public int getLivenessScore() { return livenessScore; }
     public void setLivenessScore(int livenessScore) { this.livenessScore = livenessScore; }
 
-    public boolean isLatestDocument() { return isLatestDocument; }
-    public void setLatestDocument(boolean latestDocument) { isLatestDocument = latestDocument; }
+    public Boolean getIsLatestDocument() { return isLatestDocument; }
+    public void setIsLatestDocument(Boolean latestDocument) { isLatestDocument = latestDocument; }
 
     public Map<String, Boolean> getFieldValidations() { return fieldValidations; }
     public void setFieldValidations(Map<String, Boolean> fieldValidations) { this.fieldValidations = fieldValidations; }

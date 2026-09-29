@@ -7,13 +7,45 @@ spring:
 
 app:
   identity-provider: ${IDENTITY_PROVIDER:mock} # mock, didit, official
-  didit:
     api-key: ${DIDIT_API_KEY:}
     workflow-id: ${DIDIT_WORKFLOW_ID:}
     webhook-secret: ${DIDIT_WEBHOOK_SECRET:}
+  thresholds:
+    face-match: ${FACE_MATCH_THRESHOLD:90}
+    risk: ${RISK_THRESHOLD:80}
+  circuit-breaker:
+    failures: ${CIRCUIT_BREAKER_FAILURES:3}
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info
+
+resilience4j.circuitbreaker:
+  instances:
+    diditProvider:
+      registerHealthIndicator: true
+      slidingWindowSize: 5
+      minimumNumberOfCalls: 3
+      permittedNumberOfCallsInHalfOpenState: 2
+      automaticTransitionFromOpenToHalfOpenEnabled: true
+      waitDurationInOpenState: 30s
+      failureRateThreshold: 50
+      eventConsumerBufferSize: 10
+      ignoreExceptions:
+        - com.authenticator.exception.DocumentNotLatestException
+        - com.authenticator.exception.IdentityMismatchException
+        - com.authenticator.exception.LivenessFailedException
+        - com.authenticator.exception.InvalidInputException
+        - com.authenticator.exception.FeatureUnsupportedException
+
+resilience4j.retry:
+  instances:
+    diditProvider:
+      maxRetryAttempts: 3
+      waitDuration: 2s
+      enableExponentialBackoff: true
+      exponentialBackoffMultiplier: 2
+      retryExceptions:
+        - org.springframework.web.client.HttpClientErrorException.TooManyRequests

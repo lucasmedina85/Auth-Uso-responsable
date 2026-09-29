@@ -1,24 +1,26 @@
 package com.authenticator.service;
 
-import com.authenticator.domain.FingerprintResult;
-import com.authenticator.domain.VerificationResult;
-import com.authenticator.domain.VerificationSessionResponse;
+import com.authenticator.domain.*;
 
 public interface IdentityVerificationProvider {
 
-    // CU-0008 (Hosted Mode): Create session
+    // Modo Standalone Granular
+    DocumentResult verifyDocument(byte[] frontImage, byte[] backImage, String vendorData);
+    LivenessResult checkLiveness(byte[] userImage, String vendorData);
+    FaceMatchResult matchFaces(byte[] userImage, byte[] refImage, String vendorData);
+    RegistryResult validateRegistry(String issuingState, String validationType, String firstName, String lastName, String dob, String personalNumber, String vendorData);
+
+    // Modo Hosted Legacy
     VerificationSessionResponse startVerification(String userId);
-
-    // CU-0008, CU-0009, CU-0014, CU-0015 (Direct Mode or Background RENAPER Check)
-    VerificationResult verifyIdentity(String dni, String tramite, String gender, byte[] selfie, String firstName);
-
-    // Poll result of Hosted Mode
     VerificationResult getResult(String sessionId);
 
-    // CU-0019: Cotejo Biométrico Dactilar
+    // Compatibilidad/Old (ya no se usa en el pipeline principal, reemplazado por standalone)
+    VerificationResult verifyIdentity(String dni, String tramite, String gender, byte[] selfie, String firstName);
+
+    // Huella
     FingerprintResult verifyFingerprint(byte[] encryptedTemplate);
     boolean supportsFingerprint();
 
-    // CU-0044: Heartbeat
+    // Circuit Breaker Health
     boolean checkHealth();
 }
