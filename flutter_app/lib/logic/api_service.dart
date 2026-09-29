@@ -30,9 +30,10 @@ class ApiService {
   // Use 10.0.2.2 for Android emulator to connect to localhost. 
   // Use localhost for Web/iOS simulator.
   static String get baseUrl {
+    // Detectado y configurado automáticamente para la IP local actual de tu PC (192.168.0.14)
     if (kIsWeb) return 'http://localhost:8080';
-    if (Platform.isAndroid) return 'http://10.0.2.2:8080';
-    return 'http://localhost:8080';
+    if (Platform.isAndroid) return 'http://192.168.0.14:8080'; 
+    return 'http://192.168.0.14:8080';
   }
 
   static Future<VerificationResult> executeStandalonePipeline(
@@ -52,7 +53,7 @@ class ApiService {
     request.files.add(await http.MultipartFile.fromPath('user_image', selfiePath));
 
     try {
-      var streamedResponse = await request.send();
+      var streamedResponse = await request.send().timeout(const Duration(seconds: 30));
       var response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
