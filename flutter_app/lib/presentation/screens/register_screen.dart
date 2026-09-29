@@ -1,3 +1,4 @@
+import '../../logic/auth_service.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
 import '../widgets/buttons.dart';
@@ -51,14 +52,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _isProcessing = true;
     });
     
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
+    await AuthService.register(
+      _emailController.text,
+      _passwordController.text,
+      _nameController.text + " " + _lastNameController.text
+    );
     
     if (mounted) {
       setState(() {
         _isProcessing = false;
       });
-      // Navigate to registration success screen
       Navigator.pushReplacementNamed(context, '/registration_success');
     }
   }

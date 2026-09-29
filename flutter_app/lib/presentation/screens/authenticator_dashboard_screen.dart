@@ -1,3 +1,4 @@
+import '../../logic/database_log_service.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../core/theme/app_theme.dart';
@@ -16,24 +17,22 @@ class _AuthenticatorDashboardScreenState extends State<AuthenticatorDashboardScr
   List<Map<String, String>> _applications = [];
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // If navigated from application_linked with arguments, add to the list
-    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-    if (args != null && _applications.isEmpty) {
-      _applications.add({
-        'appName': args['appName'] ?? 'Aplicación',
-        'deviceName': args['deviceName'] ?? 'Dispositivo',
-        'appId': 'app_${DateTime.now().millisecondsSinceEpoch}',
-      });
-    } else if (_applications.isEmpty) {
-      // Mock some data if nothing was passed
-      _applications.add({
-        'appName': 'Plataforma de Juegos',
-        'deviceName': 'Mi teléfono personal',
-        'appId': 'app_123',
-      });
-    }
+  @override
+  void initState() {
+    super.initState();
+    _loadApps();
+  }
+
+  Future<void> _loadApps() async {
+    final apps = await LinkedAppsService().getLinkedApps();
+    if (!mounted) return;
+    setState(() {
+      _applications = apps.map((a) => {
+        'appName': a['name'] as String,
+        'deviceName': 'Dispositivo',
+        'appId': a['id'] as String,
+      }).toList();
+    });
   }
 
   void _showMenu(BuildContext context, Map<String, String> app) {

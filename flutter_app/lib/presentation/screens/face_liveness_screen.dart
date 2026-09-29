@@ -1,3 +1,4 @@
+import '../../logic/api_service.dart';
 import "package:flutter/foundation.dart" show kIsWeb;
 import "dart:io" as io;
 import 'package:flutter/material.dart';
@@ -14,7 +15,10 @@ enum LivenessState { initializing, readyToCapture, awaitingConfirmation, process
 
 /// Screens 22-28 - Facial Biometrics & Liveness
 class FaceLivenessScreen extends StatefulWidget {
-  const FaceLivenessScreen({super.key});
+  final String? frontImagePath;
+  final String? backImagePath;
+
+  const FaceLivenessScreen({super.key, this.frontImagePath, this.backImagePath});
 
   @override
   State<FaceLivenessScreen> createState() => _FaceLivenessScreenState();
@@ -168,22 +172,37 @@ class _FaceLivenessScreenState extends State<FaceLivenessScreen> {
         _showFailedMatch("No se detectó un rostro real válido (Liveness fallido).");
         return;
       }
+      // PRE-FLIGHT OK. Now call the real Standalone API pipeline.
+      if (widget.frontImagePath == null) {
+        _showFailedMatch("Falta imagen del DNI Frontal. Reiniciando...");
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) Navigator.pushReplacementNamed(context, '/dni_capture');
+        return;
+      }
 
-      final isMatch = await _biometricService.matchWithRenaperTemplate(face);
+      setState(() {
+         _instruction = "Cotejando y evaluando Riesgo en Servidor...";
+      });
+
+      // Se usa un vendor_data simulado. En la Fase 2 usaremos el ID real de usuario.
+      final result = await ApiService.executeStandalonePipeline(
+        widget.frontImagePath!,
+        widget.backImagePath,
+        _capturedImageFile!.path,
+        "usuario_demo_fase1" 
+      );
       
       if (!mounted) return;
 
-      if (isMatch) {
+      if (result.matchType == "APPROVED") {
         setState(() {
           _state = LivenessState.success;
-          _instruction = "¡Identidad Verificada Exitosamente!";
+          _instruction = "¡Identidad Verificada!\nLiveness: ${result.livenessScore}% | FaceMatch: ${result.faceMatchScore}%";
         });
-        
-        await Future.delayed(const Duration(seconds: 2));
-        if (mounted) Navigator.pushReplacementNamed(context, '/fingerprint');
+        await Future.delayed(const Duration(seconds: 3));
+        if (mounted) Navigator.pushReplacementNamed(context, '/authentication_success');
       } else {
-        final attemptsLeft = FaceBiometricService.maxFailedAttempts - _biometricService.failedAttempts;
-        _showFailedMatch("Cotejo Fallido.\nEl rostro no coincide con el DNI.\nIntentos restantes: \$attemptsLeft");
+        _showFailedMatch("Verificación Denegada\nMotivo: ${result.matchType}");
       }
     } catch (e) {
       if (!mounted) return;

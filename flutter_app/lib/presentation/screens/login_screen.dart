@@ -1,3 +1,4 @@
+import '../../logic/auth_service.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
 import '../widgets/buttons.dart';

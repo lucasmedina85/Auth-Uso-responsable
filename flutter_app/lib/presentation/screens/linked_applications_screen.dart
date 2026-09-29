@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../core/theme/app_theme.dart';
-import '../../logic/security_data_service.dart';
-import '../widgets/buttons.dart';
+import '../../logic/database_log_service.dart';
 
 class LinkedApplicationsScreen extends StatefulWidget {
   const LinkedApplicationsScreen({super.key});
@@ -12,18 +11,40 @@ class LinkedApplicationsScreen extends StatefulWidget {
 }
 
 class _LinkedApplicationsScreenState extends State<LinkedApplicationsScreen> {
-  final SecurityDataService _dataService = SecurityDataService();
+  List<Map<String, dynamic>> _applications = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadApps();
+  }
+
+  Future<void> _loadApps() async {
+    final apps = await LinkedAppsService().getLinkedApps();
+    setState(() {
+      _applications = apps;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _unlinkApp(String id) async {
+    await LinkedAppsService().unlinkApp(id);
+    await DatabaseLogService().logEvent('APP_UNLINKED', 'App desvinculada: $id', 'SUCCESS');
+    _loadApps();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final applications = _dataService.getDevices().where((d) => d.type == 'external' || d.type == 'web').toList();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Aplicaciones Vinculadas'),
       ),
-      body: applications.isEmpty
+      body: _isLoading 
+        ? const Center(child: CircularProgressIndicator())
+        : _applications.isEmpty
           ? Center(
               child: Text(
                 'No hay aplicaciones vinculadas.',
@@ -32,100 +53,35 @@ class _LinkedApplicationsScreenState extends State<LinkedApplicationsScreen> {
                 ),
               ),
             )
-          : ListView.builder(
+          : ListView.separated(
               padding: const EdgeInsets.all(DesignTokens.spacing16),
-              itemCount: applications.length,
+              itemCount: _applications.length,
+              separatorBuilder: (_, __) => const SizedBox(height: DesignTokens.spacing12),
               itemBuilder: (context, index) {
-                final app = applications[index];
+                final app = _applications[index];
                 return Card(
-                  margin: const EdgeInsets.only(bottom: DesignTokens.spacing16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(DesignTokens.radiusMedium),
-                    side: BorderSide(color: theme.colorScheme.outlineVariant),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(DesignTokens.spacing16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.apps, color: theme.primaryColor),
-                            const SizedBox(width: DesignTokens.spacing12),
-                            Expanded(
-                              child: Text(
-                                app.name,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColorsLight.success.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                app.status,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: AppColorsLight.success,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: DesignTokens.spacing16),
-                        _buildInfoRow(context, 'ID:', app.id),
-                        const SizedBox(height: DesignTokens.spacing8),
-                        _buildInfoRow(context, 'Tipo:', app.type.toUpperCase()),
-                        const SizedBox(height: DesignTokens.spacing8),
-                        _buildInfoRow(context, 'Última conexión:', '${app.lastConnectionDate} ${app.lastConnectionTime}'),
-                        const SizedBox(height: DesignTokens.spacing8),
-                        _buildInfoRow(context, 'Ubicación:', app.location),
-                        const SizedBox(height: DesignTokens.spacing16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: TextualButton(
-                            text: 'Ver Detalles',
-                            onPressed: () {
-                              Navigator.pushNamed(context, '/device_details', arguments: app);
-                            },
-                          ),
-                        ),
-                      ],
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(DesignTokens.spacing16),
+                    leading: CircleAvatar(
+                      backgroundColor: theme.colorScheme.primaryContainer,
+                      child: Icon(Icons.apps, color: theme.colorScheme.onPrimaryContainer),
+                    ),
+                    title: Text(
+                      app['name'],
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: DesignTokens.spacing8),
+                      child: Text('Vinculada el: ${app['addedAt']}'),
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      onPressed: () => _unlinkApp(app['id']),
                     ),
                   ),
                 );
               },
             ),
-    );
-  }
-
-  Widget _buildInfoRow(BuildContext context, String label, String value) {
-    final theme = Theme.of(context);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 120,
-          child: Text(
-            label,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

@@ -1,3 +1,4 @@
+import '../../logic/database_log_service.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../logic/security_data_service.dart';
@@ -59,6 +60,10 @@ class _AddApplicationScreenState extends State<AddApplicationScreen> {
 
     // Save to central storage/table
     SecurityDataService().addDevice(newDevice);
+    
+    // Save to real local database (SQLite)
+    LinkedAppsService().linkApp(newDevice.id, newDevice.name, "seed_falsa_123");
+    DatabaseLogService().logEvent('APP_LINKED', 'App vinculada: ${newDevice.name}', 'SUCCESS');
 
     Navigator.pushNamed(
       context, 
