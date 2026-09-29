@@ -67,7 +67,7 @@ Auth - Aplicativo/
 
 ---
 
-## 📋 4. Plan de Implementación: MVP 30% (15 Casos de Uso)
+## 📋 4. Plan de Implementación: MVP 50% (25 Casos de Uso)
 
 El plan de implementación inicial cubre las capacidades críticas de autenticación, validación documental y biometría:
 
@@ -88,8 +88,8 @@ Para cumplir con altos estándares de ciberseguridad e industria Fintech / Segur
 - **Tipografía:** Montserrat (`Montserrat-Bold`, `Montserrat-SemiBold`, `Montserrat-Medium`, `Montserrat-Regular`).
 - **Paleta de Colores Oficial:**
   - 🟦 **Primary Call to Action:** Industrial Safety Blue (`#0288D1`)
-  - ⬛ **Text & Dark Containers:** Deep Graphite Mine (`#263238`)
   - 🟩 **Success / Validation:** Validation Green (`#2E7D32`)
+  - ⬛ **Text & Dark Containers:** Deep Graphite Mine (`#263238`)
   - 🟨 **Warning / Moderate Risk:** Warning Yellow (`#FBC02D`)
   - 🟥 **Alerts / Fraud / Block:** Fraud Red (`#C62828`)
   - ⬜ **Backgrounds:** White (`#FFFFFF`) & Light Neutral Gray (`#F5F7F8`)
@@ -104,15 +104,30 @@ Para cumplir con altos estándares de ciberseguridad e industria Fintech / Segur
   - Login y registro con términos y condiciones legales orientados a protección de menores.
   - Validación obligatoria de versión mínima de Android.
 
-- **Fase 2: Módulo KYC (Know Your Customer)**
-  - Captura asistida de frente/dorso de DNI argentino.
-  - Módulo facial con prueba de vida (Liveness Test) y extracción de vectores.
-  - Extracción OCR y mock de contraste contra RENAPER.
+### 🛡️ Implementación Funcional de Casos de Uso (MVP)
+
+A continuación se detallan las reglas de negocio de alto impacto implementadas para este proyecto:
+
+#### TARJETA DNI
+* **CU-0003 Extracción de Datos Biográficos mediante OCR:** Se escanea el código PDF417 del DNI y el sistema levanta un modal pidiendo confirmación explícita al usuario ("¿Son correctos los datos?").
+* **CU-0004 Extracción de Código de Trámite de DNI:** El número de trámite se extrae y se suma a la validación de seguridad visual.
+* **CU-0005 Validación de Vigencia de Documento:** Si la fecha de expiración del DNI es menor a la actual, el sistema lo bloquea definitivamente e impide el alta.
+* **CU-0006 Detección de Manipulación en DNI:** Si se detecta un documento de prueba (ej. `00000000`), el sistema interrumpe todo alertando posible falsificación.
+
+#### CAPTURA DE ROSTRO Y CÁMARA
+* **CU-0007 Cálculo de Mayoría de Edad:** El sistema calcula la edad real. Si el titular es menor de 18 años, se le deniega el acceso a la plataforma instantáneamente.
+* **CU-0012 Captura Vectorial de Rostro:** La validación de vida ya no es invisible; exige interacción. El usuario debe sacarse una foto y certificar que su rostro salió nítido antes de enviarlo a verificar.
+* **CU-0016 Verificación de Intentos Faciales Fallidos:** Si la comparación del rostro con la foto del DNI (RENAPER) falla 3 veces, el módulo se bloquea permanentemente por seguridad.
+* **CU-0041 Manejo de Errores de Hardware de Cámara:** Sin cámara no hay identidad. Si se rechazan los permisos, se cancelan las opciones alternativas y se bloquea el proceso.
+* **CU-0042 Procesamiento Manual de OCR Fallido:** Ante la falla del escáner, se levanta un formulario manual. Se obliga al usuario a subir una foto fotográfica real del DNI para asegurar la evidencia.
+
+#### FUNCIONALES Y VALIDACIONES EXTRA
+* **CU-0022 Análisis de Riesgo por Franja Horaria:** Para protección, se bloquea la generación de códigos de autenticación en horario escolar (07:00 a 17:00).
+* **CU-0020 Obtención de Coordenadas Geográficas:** Tras el alta exitosa, se solicitan los permisos de ubicación, informando al usuario desde qué dirección exacta (Calle/Localidad) está autorizando la conexión.
 
 - **Fase 3: Módulo TOTP (Autenticador Temporal)**
   - Generación de códigos dinámicos de 6 dígitos basados en tiempo (Time-based OTP).
   - Temporizador circular de seguridad alineado a la sesión del adulto responsable.
-
 - **Fase 4: Auditoría y Dispositivos Confiables**
   - Dashboard de historial de intentos de acceso con evidencia biométrica registrada.
   - Timeline de dispositivos vinculados (IPs, fechas y eventos de riesgo).
@@ -163,6 +178,29 @@ git push -u origin main
    flutter_app/build/app/outputs/flutter-apk/app-release.apk
    ```
 
+### 🔹 7.3. Probar el aplicativo en modo Local (Web)
+
+Gracias a la integración de **WebAssembly**, podés probar el flujo completo (incluyendo escáner de DNI y biometría) directamente desde tu navegador simulando un dispositivo móvil.
+
+1. Abre tu terminal y ubícate en la carpeta del proyecto de Flutter:
+   ```bash
+   cd flutter_app
+   ```
+2. Asegúrate de tener todas las dependencias actualizadas:
+   ```bash
+   flutter clean
+   flutter pub get
+   ```
+3. Ejecuta el servidor web local de Flutter en el puerto 8080:
+   ```bash
+   flutter run -d web-server --web-port 8080
+   ```
+4. **Verificación Visual:**
+   - Abre cualquier navegador web (recomendado Google Chrome) e ingresa a: **`http://localhost:8080`**
+   - Presiona **`F12`** para abrir las herramientas de desarrollador.
+   - Haz clic en el ícono de **Modo Dispositivo** (o presiona `Ctrl + Shift + M`).
+   - Selecciona un modelo de celular (ej. *iPhone 12 Pro* o *Pixel 7*) y recarga la página (`F5`).
+
 ---
 
 ## 🧪 8. Plan de Verificación y Pruebas
@@ -180,8 +218,3 @@ git push -u origin main
   <b>AUTHENTICATOR | Plataforma de Seguridad e Identidad Digital</b><br>
   <i>Tecnología al servicio de la protección de la infancia y las adolescencias.</i>
 </p>
-<<<<<<< HEAD
->>>>>>> 19b5d12366 (First commit - MVP Authenticator Juego Responsable)
-=======
-r
->>>>>>> 17d5c38dc5 (init)

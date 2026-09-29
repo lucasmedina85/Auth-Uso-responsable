@@ -1,0 +1,12 @@
+/home/lucas/Documentos/USAL/SIP | Seminario de Integracion Prof/Auth - Aplicativo/backend_service/src/main/java/com/authenticator/domain/VerificationResult.java
+/home/lucas/Documentos/USAL/SIP | Seminario de Integracion Prof/Auth - Aplicativo/backend_service/src/main/java/com/authenticator/exception/IdentityMismatchException.java
+/home/lucas/Documentos/USAL/SIP | Seminario de Integracion Prof/Auth - Aplicativo/backend_service/src/main/java/com/authenticator/service/IdentityVerificationProvider.java
+/home/lucas/Documentos/USAL/SIP | Seminario de Integracion Prof/Auth - Aplicativo/backend_service/src/main/java/com/authenticator/service/VerificationSessionService.java
+/home/lucas/Documentos/USAL/SIP | Seminario de Integracion Prof/Auth - Aplicativo/backend_service/src/main/java/com/authenticator/service/MockVerificationProvider.java
+/home/lucas/Documentos/USAL/SIP | Seminario de Integracion Prof/Auth - Aplicativo/backend_service/src/main/java/com/authenticator/AuthenticatorApplication.java
+/home/lucas/Documentos/USAL/SIP | Seminario de Integracion Prof/Auth - Aplicativo/backend_service/src/main/java/com/authenticator/exception/ProviderTimeoutException.java
+/home/lucas/Documentos/USAL/SIP | Seminario de Integracion Prof/Auth - Aplicativo/backend_service/src/main/java/com/authenticator/service/DiditVerificationProvider.java
+/home/lucas/Documentos/USAL/SIP | Seminario de Integracion Prof/Auth - Aplicativo/backend_service/src/main/java/com/authenticator/controller/VerificationController.java
+/home/lucas/Documentos/USAL/SIP | Seminario de Integracion Prof/Auth - Aplicativo/backend_service/src/main/java/com/authenticator/domain/VerificationSessionResponse.java
+/home/lucas/Documentos/USAL/SIP | Seminario de Integracion Prof/Auth - Aplicativo/backend_service/src/main/java/com/authenticator/config/ProviderConfig.java
+/home/lucas/Documentos/USAL/SIP | Seminario de Integracion Prof/Auth - Aplicativo/backend_service/src/main/java/com/authenticator/exception/ProviderUnavailableException.java

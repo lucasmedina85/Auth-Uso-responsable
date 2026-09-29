@@ -1,0 +1,19 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: authenticator-backend
+
+app:
+  identity-provider: ${IDENTITY_PROVIDER:mock} # mock, didit, official
+  didit:
+    api-key: ${DIDIT_API_KEY:}
+    workflow-id: ${DIDIT_WORKFLOW_ID:}
+    webhook-secret: ${DIDIT_WEBHOOK_SECRET:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

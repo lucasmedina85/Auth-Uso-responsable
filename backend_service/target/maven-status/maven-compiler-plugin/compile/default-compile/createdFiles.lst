@@ -1,0 +1,12 @@
+com/authenticator/controller/VerificationController.class
+com/authenticator/service/IdentityVerificationProvider.class
+com/authenticator/service/DiditVerificationProvider.class
+com/authenticator/exception/ProviderUnavailableException.class
+com/authenticator/service/VerificationSessionService.class
+com/authenticator/config/ProviderConfig.class
+com/authenticator/exception/ProviderTimeoutException.class
+com/authenticator/exception/IdentityMismatchException.class
+com/authenticator/domain/VerificationSessionResponse.class
+com/authenticator/service/MockVerificationProvider.class
+com/authenticator/domain/VerificationResult.class
+com/authenticator/AuthenticatorApplication.class

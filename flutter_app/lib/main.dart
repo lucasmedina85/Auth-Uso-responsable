@@ -11,7 +11,7 @@ import 'presentation/screens/privacy_screen.dart';
 import 'presentation/screens/registration_success_screen.dart';
 import 'presentation/screens/permission_screen.dart';
 import "presentation/screens/manual_ocr_screen.dart";
-import 'presentation/screens/dni_capture_screen.dart';
+import "presentation/screens/hosted_verification_screen.dart";
 import 'presentation/screens/face_liveness_screen.dart';
 import 'presentation/screens/biometric_fingerprint_screen.dart';
 import 'presentation/screens/authentication_success_screen.dart';
@@ -67,15 +67,7 @@ class AuthenticatorApp extends StatelessWidget {
         '/privacy': (context) => const PrivacyScreen(),
         '/registration_success': (context) => const RegistrationSuccessScreen(),
         '/permissions': (context) => const PermissionScreen(),
-        '/dni_capture': (context) => DniCaptureScreenFlutter(
-          onComplete: (f, b) {
-            // Navigate to face liveness when DNI is done
-            Navigator.pushReplacementNamed(context, '/face_liveness');
-          },
-          onManualFallback: () {
-            Navigator.pushReplacementNamed(context, '/manual_ocr');
-          },
-        ),
+        "/dni_capture": (context) => const HostedVerificationScreen(),
         '/manual_ocr': (context) => ManualOcrScreenFlutter(
           onSubmit: (dni, tramit, imagePath) {
             // Navigate to face liveness when manual input is done
