@@ -8,9 +8,15 @@ spring:
 app:
   identity-provider: ${IDENTITY_PROVIDER:mock} # mock, didit, official
   didit:
+    mode: ${DIDIT_MODE:hosted} # hosted, direct
     api-key: ${DIDIT_API_KEY:}
     workflow-id: ${DIDIT_WORKFLOW_ID:}
     webhook-secret: ${DIDIT_WEBHOOK_SECRET:}
+  thresholds:
+    face-match: ${FACE_MATCH_THRESHOLD:90}
+    risk: ${RISK_THRESHOLD:80}
+  circuit-breaker:
+    failures: ${CIRCUIT_BREAKER_FAILURES:3}
 
 management:
   endpoints:

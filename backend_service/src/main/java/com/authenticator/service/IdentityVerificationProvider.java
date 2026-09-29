@@ -1,26 +1,24 @@
 package com.authenticator.service;
 
+import com.authenticator.domain.FingerprintResult;
 import com.authenticator.domain.VerificationResult;
 import com.authenticator.domain.VerificationSessionResponse;
 
 public interface IdentityVerificationProvider {
-    /**
-     * Inicia una sesión hospedada de validación de identidad.
-     * @param userId El ID interno del usuario
-     * @return Respuesta con el ID de sesión del proveedor y la URL para redireccionar al usuario.
-     */
+
+    // CU-0008 (Hosted Mode): Create session
     VerificationSessionResponse startVerification(String userId);
 
-    /**
-     * Consulta el resultado de una sesión.
-     * @param sessionId El ID de sesión retornado en startVerification.
-     * @return El resultado de la verificación.
-     */
+    // CU-0008, CU-0009, CU-0014, CU-0015 (Direct Mode or Background RENAPER Check)
+    VerificationResult verifyIdentity(String dni, String tramite, String gender, byte[] selfie, String firstName);
+
+    // Poll result of Hosted Mode
     VerificationResult getResult(String sessionId);
 
-    /**
-     * Verifica la disponibilidad del proveedor.
-     * @return true si el servicio está operativo.
-     */
+    // CU-0019: Cotejo Biométrico Dactilar
+    FingerprintResult verifyFingerprint(byte[] encryptedTemplate);
+    boolean supportsFingerprint();
+
+    // CU-0044: Heartbeat
     boolean checkHealth();
 }
