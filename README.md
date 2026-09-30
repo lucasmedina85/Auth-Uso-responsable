@@ -1,27 +1,15 @@
-# Autenticador - Juego Responsable (Backend)
+# Auth - Uso Responsable
 
-Servicio de verificación de identidad con biometría facial.
+Aplicación de autenticación con doble factor, validación de identidad (DNI/Liveness) y motor de riesgo.
+Compuesta por una App móvil en Flutter y un backend de validación en Spring Boot.
 
-## Arquitectura
-La aplicación provee un pipeline Standalone granular que se conecta a proveedores de identidad (por defecto Didit) y maneja las imágenes completamente en memoria.
+## Arquitectura de Seguridad
+- **Backend (Spring Boot):** Maneja el estado definitivo de la sesión de usuario, validando credenciales (Argon2id) y gestionando tokens JWT (Access de corta duración, Refresh Tokens rotativos con denylist `jti`).
+- **Frontend (Flutter):** Almacena de manera segura únicamente los tokens de sesión usando keystore. No guarda ni manipula localmente datos de credenciales explícitas o biometría después del login/validación.
 
-## Privacidad y Seguridad (Ley 25.326)
-**ATENCIÓN:** El uso de esta API implica capturar, procesar y enviar datos biométricos (rostro, DNI) a proveedores de terceros (Didit).
-Es obligatorio que los clientes obtengan el **Consentimiento Informado explícito** del usuario antes de invocar los endpoints de verificación. 
-*Privacy by Design:* Las imágenes se mantienen estrictamente en memoria (RAM) y nunca se escriben a disco. Los datos de la petición no se almacenan en el proveedor salvo que se active `DIDIT_SAVE_REQUESTS=true`. Los DNIs en los logs del sistema son enmascarados de manera irreversible.
+### Verificación de Identidad (`VERIFICATION_MODE`)
+- **Modo Local:** El dispositivo evalúa el DNI (OCR) y prueba de vida. Es **auto-informado** y asume confianza en el cliente para fines de demostración o fases iniciales.
+- **Modo Remoto (Didit/RENAPER):** La evaluación se delega a servicios terceros verificables criptográficamente en backend.
 
-## Matriz de Casos de Uso (CU)
-| ID | Descripción | Componente Backend | Tests de Cobertura |
-|---|---|---|---|
-| CU-0003 | Extracción de datos del DNI | IdentityVerificationProvider.verifyDocument | StandalonePipelineTest.testHappyPath |
-| CU-0005 | Verificación de Vigencia | IdentityVerificationService.executeStandalonePipeline | StandalonePipelineTest.testDocumentDeclined |
-| CU-0007 | Minoridad | IdentityVerificationService.isUnderage | StandalonePipelineTest.testUnderage |
-| CU-0008 | Conexión Segura | DiditVerificationProvider (x-api-key headers) | (Mockeado en capa HTTP) |
-| CU-0009 | Database Validation (RENAPER) | IdentityVerificationProvider.validateRegistry | StandalonePipelineTest.testUnknownDocumentState |
-| CU-0010 | Perfil Digital | VerificationResult / RegistryResult | StandalonePipelineTest |
-| CU-0014 | Liveness Pasivo | IdentityVerificationProvider.checkLiveness | StandalonePipelineTest.testBusinessExceptionDoesNotTripBreaker |
-| CU-0015 | Face Match 1:1 | IdentityVerificationProvider.matchFaces | StandalonePipelineTest |
-| CU-0019 | Dactilar | (No soportado en Standalone Didit) | |
-| CU-0022 | Horarios sospechosos | RiskEngineService | RiskEngineServiceTest |
-| CU-0023 | Motor de Riesgo | RiskEngineService | RiskEngineServiceTest |
-| CU-0044 | Circuit Breaker/Caídas | Resilience4j + ProviderTimeoutException | StandalonePipelineTest.testProviderTimeoutThrowsExceptionForBreaker |
+*Nota de seguridad: Los tests locales y la base H2 en memoria exponen APIs protegidas por un esquema Fail-Closed. En producción, la conexión con PostgreSQL y el manejo de JWT_SECRET deben pasarse siempre por variables de entorno seguras.*
+

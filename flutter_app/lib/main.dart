@@ -69,15 +69,7 @@ class AuthenticatorApp extends StatelessWidget {
         '/permissions': (context) => const PermissionScreen(),
         "/dni_capture": (context) => DniCaptureScreenFlutter(
           onComplete: (front, back) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => FaceLivenessScreen(
-                  frontImagePath: front,
-                  backImagePath: back,
-                ),
-              ),
-            );
+            Navigator.pushReplacementNamed(context, '/face_liveness');
           },
           onManualFallback: () {
             Navigator.pushReplacementNamed(context, '/manual_ocr');

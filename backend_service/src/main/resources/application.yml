@@ -1,11 +1,23 @@
 server:
   port: 8080
 
+
 spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   application:
     name: authenticator-backend
 
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
 app:
+  jwt:
+    secret: ${JWT_SECRET:dGhpcy1pcy1hLWR1bW15LXNlY3JldC1rZXktZm9yLWRldmVsb3BtZW50LW9ubHktdGhhdC1tdXN0LWJlLXJlcGxhY2VkLWF0LWxlYXN0LTI1Ni1iaXRz}
+    access-token-expiration-ms: 900000 # 15 min
+    refresh-token-expiration-ms: 604800000 # 7 days
+
   identity-provider: ${IDENTITY_PROVIDER:mock} # mock, didit, official
   didit:
     api-key: ${DIDIT_API_KEY:}

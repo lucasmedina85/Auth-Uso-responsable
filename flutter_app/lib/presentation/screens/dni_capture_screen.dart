@@ -210,15 +210,92 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
     setState(() => _isProcessing = true);
 
     if (_step == FlutterCaptureStep.validateFront) {
-      // Fase 1: Ignoramos el OCR local para evitar bloqueos por fallos de cámara.
-      // El backend ahora extraerá los datos vía Didit Standalone.
-      setState(() {
-         _isProcessing = false;
-         _step = FlutterCaptureStep.back;
-      });
+      final data = await _ocrProcessor.processFrontImage(_frontPath!);
+      if (mounted) setState(() => _isProcessing = false);
+
+      if (data != null) {
+        _ocrFailures = 0;
+        _scannedData = data; // Guardar datos PDF417 (Frente)
+        if (mounted) setState(() => _step = FlutterCaptureStep.back);
+      } else {
+        _ocrFailures++;
+        if (_ocrFailures >= 3) {
+          _ocrFailures = 0; // Reset for back step
+          if (mounted) setState(() => _step = FlutterCaptureStep.back);
+        } else {
+          _showErrorSnackBar('No pudimos leer el código de barras. Intentá nuevamente (${3 - _ocrFailures} intentos restantes).');
+          if (mounted) {
+            setState(() {
+              _frontPath = null;
+              _step = FlutterCaptureStep.front;
+            });
+          }
+        }
+      }
     } else if (_step == FlutterCaptureStep.validateBack) {
-      // Frente y dorso capturados, pasamos a FaceLiveness (onComplete)
-      _cleanupAndNavigate(() => widget.onComplete(_frontPath!, _backPath!));
+      final backData = await _ocrProcessor.processBackImage(_backPath!);
+      if (mounted) setState(() => _isProcessing = false);
+
+      // Combinar datos del frente (PDF417) y dorso (MRZ)
+      // Si alguno falló, usamos el otro. Priorizamos el frente porque PDF417 suele tener nombres completos
+      DniBiographicData? data = _scannedData ?? backData;
+
+      if (data != null) {
+        // Enriquecer con número de trámite del MRZ si PDF417 no lo trajo, o viceversa
+        if (backData != null && data.tramitNumber == null) {
+          data = data.copyWith(tramitNumber: backData.tramitNumber);
+        }
+        
+        // CU-0006: Detección de manipulación simulada (Si el DNI contiene muchos ceros o falla un hash)
+        if (data.documentNumber == "00000000" || data.documentNumber.contains("123456")) {
+          _showBlockingDialog(
+            title: 'Manipulación Detectada',
+            message: 'Se ha detectado una posible manipulación o falsificación en el código PDF417 del documento. Se bloqueó la autenticación.',
+            icon: Icons.gpp_bad,
+          );
+          return;
+        }
+
+        // CU-0005: Validación de vigencia (mostrar fechas)
+        if (!_docValidator.isDocumentValid(data.expirationDate)) {
+          final nowFormat = DateFormat('dd/MM/yyyy').format(DateTime.now());
+          final expFormat = DateFormat('dd/MM/yyyy').format(data.expirationDate);
+          
+          _showBlockingDialog(
+            title: 'Documento Vencido',
+            message: 'La fecha de vigencia de tu DNI ($expFormat) es menor a la fecha actual ($nowFormat). No se permite continuar.',
+            icon: Icons.event_busy,
+          );
+          return;
+        }
+
+        if (!_ageCalculator.isAdult(data.birthDate)) {
+          final birthFormat = DateFormat('dd/MM/yyyy').format(data.birthDate);
+          _showBlockingDialog(
+            title: 'Acceso Denegado',
+            message: 'La fecha de nacimiento ($birthFormat) indica que el titular es menor de 18 años. Solo los mayores de edad pueden utilizar la aplicación (CU-0007).',
+            icon: Icons.block,
+          );
+          return;
+        }
+
+        // CU-0003 y CU-0004: Mostrar datos extraídos y pedir confirmación
+        _showDataConfirmationDialog(data);
+
+      } else {
+        _ocrFailures++;
+        if (_ocrFailures >= 3) {
+          _cleanupAndNavigate(() => widget.onManualFallback());
+        } else {
+          _showErrorSnackBar('No pudimos leer los datos del reverso. Intentá nuevamente (${3 - _ocrFailures} intentos restantes).');
+          if (mounted) {
+            setState(() {
+              _backPath = null;
+              _step = FlutterCaptureStep.back;
+            });
+          }
+        }
+      }
     }
   }
 
