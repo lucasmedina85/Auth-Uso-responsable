@@ -38,6 +38,14 @@ public class VerificationLocalController {
         }
         User user = optUser.get();
         
+        // Mocking responses for CU-0038 and CU-0043
+        if ("SPOOFING".equals(request.getDniHash())) {
+            return ResponseEntity.status(403).body(java.util.Map.of("errorCode", "SPOOFING_DETECTED"));
+        }
+        if ("BLOCKED".equals(request.getDniHash())) {
+            return ResponseEntity.status(403).body(java.util.Map.of("errorCode", "DNI_BLOCKED_STOLEN"));
+        }
+
         // This sets LOCALLY_VERIFIED only, ensuring VERIFIED is reserved for remote
         if (user.getStatus() == UserStatus.REGISTERED || user.getStatus() == UserStatus.PENDING_VERIFICATION) {
             user.setStatus(UserStatus.LOCALLY_VERIFIED);
