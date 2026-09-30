@@ -159,8 +159,7 @@ class _FaceLivenessScreenState extends State<FaceLivenessScreen> {
     
     setState(() {
       _state = LivenessState.processing;
-      _instruction = "Analizando liveness...
-Cotejando contra RENAPER (1:1)...";
+      _instruction = "Analizando liveness...\nCotejando contra RENAPER (1:1)...";
     });
 
     try {
@@ -212,9 +211,7 @@ Cotejando contra RENAPER (1:1)...";
         if (mounted) Navigator.pushReplacementNamed(context, '/fingerprint');
       } else {
         final attemptsLeft = FaceBiometricService.maxFailedAttempts - _biometricService.failedAttempts;
-        _showFailedMatch("Cotejo Fallido.
-El rostro no coincide con el DNI.
-Intentos restantes: $attemptsLeft");
+        _showFailedMatch("Cotejo Fallido.\nEl rostro no coincide con el DNI.\nIntentos restantes: $attemptsLeft");
       }
     } catch (e) {
       if (!mounted) return;
