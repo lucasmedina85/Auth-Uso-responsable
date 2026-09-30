@@ -1,0 +1,7 @@
+backend_service/target/
+backend_service/data/
+*.jar
+*.mv.db
+*.trace.db
+.env
+*.py

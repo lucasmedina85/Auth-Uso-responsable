@@ -24,6 +24,20 @@ import static org.junit.jupiter.api.Assertions.*;
 @Transactional
 public class AuthServiceTest {
 
+    @Test
+    public void testLoginTimingAttackMitigationWhenUserNotFound() {
+        LoginRequest request = new LoginRequest();
+        request.setEmail("unknown@example.com");
+        request.setPassword("password123");
+
+        long startTime = System.currentTimeMillis();
+        assertThrows(SecurityException.class, () -> authService.login(request));
+        long duration = System.currentTimeMillis() - startTime;
+        
+        // El proceso debería tomar cierto tiempo de hashing, no ser instantáneo (< 10ms).
+        assertTrue(duration > 10, "Login fallido para usuario inexistente debería demorar debido al hashing mitigando timing attacks");
+    }
+
     @Autowired
     private AuthService authService;
 
