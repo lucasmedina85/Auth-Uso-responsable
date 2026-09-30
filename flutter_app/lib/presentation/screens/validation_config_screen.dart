@@ -3,9 +3,45 @@ import '../../core/theme/design_tokens.dart';
 import '../../logic/security_data_service.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:shared_preferences/shared_preferences.dart';
 
-class ValidationConfigScreen extends StatelessWidget {
+class ValidationConfigScreen extends StatefulWidget {
   const ValidationConfigScreen({super.key});
+
+  @override
+  State<ValidationConfigScreen> createState() => _ValidationConfigScreenState();
+}
+
+class _ValidationConfigScreenState extends State<ValidationConfigScreen> {
+  int _selectedTtl = 5;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTtl();
+  }
+
+  Future<void> _loadTtl() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _selectedTtl = prefs.getInt('session_ttl') ?? 5;
+    });
+  }
+
+  Future<void> _saveTtl(int? newValue) async {
+    if (newValue != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('session_ttl', newValue);
+      setState(() {
+        _selectedTtl = newValue;
+      });
+      if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+           const SnackBar(content: Text('Tiempo de vida de la sesión actualizado.')),
+         );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +84,27 @@ class ValidationConfigScreen extends StatelessWidget {
                 ),
               ),
               
+              const SizedBox(height: DesignTokens.spacing32),
+              
+              Text(
+                'Tiempo de Vida de Sesión (TTL)',
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: DesignTokens.spacing8),
+              DropdownButtonFormField<int>(
+                value: _selectedTtl,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Minutos de inactividad',
+                ),
+                items: const [
+                  DropdownMenuItem(value: 5, child: Text('5 minutos')),
+                  DropdownMenuItem(value: 15, child: Text('15 minutos')),
+                  DropdownMenuItem(value: 30, child: Text('30 minutos')),
+                ],
+                onChanged: _saveTtl,
+              ),
+
               const SizedBox(height: DesignTokens.spacing32),
               
               Text(

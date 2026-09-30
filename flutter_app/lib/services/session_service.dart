@@ -53,7 +53,6 @@ class SessionService {
     return token != null;
   }
 
-  // Auth Operations calling backend directly bypassing interceptor loop for login
   static Future<bool> login(String email, String password) async {
     try {
       final dio = Dio(BaseOptions(baseUrl: DioClient.baseUrl));
@@ -65,6 +64,9 @@ class SessionService {
         await saveTokens(response.data['accessToken'], response.data['refreshToken']);
         return true;
       }
+    } on DioException catch (e) {
+      log('Login dio error: $e');
+      rethrow;
     } catch (e) {
       log('Login error: $e');
     }

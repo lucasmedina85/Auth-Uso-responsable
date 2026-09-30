@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'services/notification_service.dart';
 
 import 'core/theme/app_theme.dart';
 import 'presentation/screens/splash_screen.dart';
@@ -33,9 +34,13 @@ import 'presentation/screens/transfer_accounts_screen.dart';
 import 'presentation/widgets/session_manager.dart';
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   const MethodChannel('com.authenticator/security').invokeMethod('enableSecureMode');
+  
+
+  await NotificationService().init();
+  
   runApp(const AuthenticatorApp());
 }
 

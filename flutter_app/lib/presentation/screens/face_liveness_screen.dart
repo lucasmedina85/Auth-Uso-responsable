@@ -7,6 +7,9 @@ import 'dart:async';
 import '../../core/theme/design_tokens.dart';
 import '../../logic/security_data_service.dart';
 import '../../logic/face_biometric_service.dart';
+import '../../core/network/dio_client.dart';
+import 'package:dio/dio.dart';
+import 'security_alert_screen.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import '../widgets/buttons.dart';
 
@@ -156,7 +159,8 @@ class _FaceLivenessScreenState extends State<FaceLivenessScreen> {
     
     setState(() {
       _state = LivenessState.processing;
-      _instruction = "Analizando liveness...\nCotejando contra RENAPER (1:1)...";
+      _instruction = "Analizando liveness...
+Cotejando contra RENAPER (1:1)...";
     });
 
     try {
@@ -164,9 +168,34 @@ class _FaceLivenessScreenState extends State<FaceLivenessScreen> {
       final face = await _biometricService.checkPassiveLiveness(inputImage);
       
       if (face == null) {
-        // Falló liveness
         _showFailedMatch("No se detectó un rostro real válido (Liveness fallido).");
         return;
+      }
+
+      // TODO(Phase 3): Integrate with POST /verification/local-result
+      // Simulamos la respuesta de la API que nos puede lanzar 403 SPOOFING_DETECTED o DNI_BLOCKED
+      try {
+        final dio = DioClient().dio;
+        // final response = await dio.post('/verification/local-result', data: {...});
+        // We simulate success or specific exceptions based on backend behavior
+        // Throw specific DioException manually for mock testing if needed
+      } on DioException catch (apiError) {
+        if (apiError.response?.statusCode == 403) {
+           final errorCode = apiError.response?.data['errorCode'] ?? '';
+           if (errorCode == 'SPOOFING_DETECTED') {
+             Navigator.push(context, MaterialPageRoute(builder: (ctx) => const SecurityAlertScreen(
+               title: 'Suplantación de Identidad',
+               message: 'El sistema ha detectado un intento de fraude biométrico. Su cuenta y dispositivos quedan bajo revisión.',
+             )));
+             return;
+           } else if (errorCode == 'DNI_BLOCKED_STOLEN') {
+             Navigator.push(context, MaterialPageRoute(builder: (ctx) => const SecurityAlertScreen(
+               title: 'DNI Bloqueado',
+               message: 'Este documento ha sido reportado o figura en las listas de denegación. Contacte a la autoridad emisora.',
+             )));
+             return;
+           }
+        }
       }
 
       final isMatch = await _biometricService.matchWithRenaperTemplate(face);
@@ -183,7 +212,9 @@ class _FaceLivenessScreenState extends State<FaceLivenessScreen> {
         if (mounted) Navigator.pushReplacementNamed(context, '/fingerprint');
       } else {
         final attemptsLeft = FaceBiometricService.maxFailedAttempts - _biometricService.failedAttempts;
-        _showFailedMatch("Cotejo Fallido.\nEl rostro no coincide con el DNI.\nIntentos restantes: \$attemptsLeft");
+        _showFailedMatch("Cotejo Fallido.
+El rostro no coincide con el DNI.
+Intentos restantes: $attemptsLeft");
       }
     } catch (e) {
       if (!mounted) return;

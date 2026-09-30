@@ -1,4 +1,6 @@
 import '../../services/session_service.dart';
+import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
 import '../widgets/buttons.dart';
@@ -37,10 +39,25 @@ class _LoginScreenState extends State<LoginScreen> {
       _isProcessing = true;
     });
     
-    bool success = await SessionService.login(
-      _emailController.text,
-      _passwordController.text,
-    );
+    bool success = false;
+    try {
+      success = await SessionService.login(
+        _emailController.text,
+        _passwordController.text,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 429) {
+        String retryAfter = e.response?.headers.value('Retry-After') ?? '60';
+        int seconds = int.tryParse(retryAfter) ?? 60;
+        if (mounted) {
+          setState(() { _isProcessing = false; });
+          _startLockoutTimer(seconds);
+          return;
+        }
+      }
+    } catch (e) {
+      // Ignored
+    }
 
     if (mounted) {
       setState(() {
@@ -65,6 +82,36 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     }
+  }
+
+  int _lockoutSeconds = 0;
+  Timer? _lockoutTimer;
+
+  void _startLockoutTimer(int seconds) {
+    setState(() {
+      _lockoutSeconds = seconds;
+    });
+    _lockoutTimer?.cancel();
+    _lockoutTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        if (_lockoutSeconds > 0) {
+          _lockoutSeconds--;
+        } else {
+          timer.cancel();
+        }
+      });
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Demasiados intentos. Cuenta bloqueada temporalmente.'),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   @override
@@ -145,8 +192,8 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: DesignTokens.spacing32),
               
               PrimaryButton(
-                text: 'Iniciar sesión',
-                onPressed: _isProcessing ? null : _handleLogin,
+                text: _lockoutSeconds > 0 ? 'Reintente en $_lockoutSeconds s' : 'Iniciar sesión',
+                onPressed: _isProcessing || _lockoutSeconds > 0 ? null : _handleLogin,
                 isLoading: _isProcessing,
               ),
               

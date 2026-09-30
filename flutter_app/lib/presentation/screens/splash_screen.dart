@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
 import '../../services/session_service.dart';
+import '../../services/config_service.dart';
+import 'mandatory_update_screen.dart';
 
 /// Screen 01 - Splash Screen
 /// Initializes the application and transitions to the Device Security Check.
@@ -36,6 +38,20 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     // Redirect to Device Security Check after 2.5 seconds
     _redirectTimer = Timer(const Duration(milliseconds: 2500), () async {
       if (mounted) {
+        final versionCheck = await ConfigService.checkVersionRequirement();
+        if (versionCheck != null && versionCheck['needsUpdate'] == true && versionCheck['isMandatory'] == true) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MandatoryUpdateScreen(
+                  currentVersion: versionCheck['currentVersion'],
+                  minimumRequiredVersion: versionCheck['requiredVersion'],
+                  onUpdatePressed: () {},
+                ),
+              ),
+            );
+            return;
+        }
 
         await SessionService.initializeAndCleanLegacy();
         bool loggedIn = await SessionService.isLoggedIn();
