@@ -18,10 +18,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final TextEditingController _confirmPasswordController = TextEditingController();
 
   bool _hasLength = false;
-  bool _hasUppercase = false;
-  bool _hasLowercase = false;
-  bool _hasNumber = false;
-  bool _hasSpecial = false;
+  
+  
+  
+  
 
   @override
   void initState() {
@@ -40,28 +40,22 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   void _validatePassword() {
     final pass = _newPasswordController.text;
     setState(() {
-      _hasLength = pass.length >= 8;
-      _hasUppercase = pass.contains(RegExp(r'[A-Z]'));
-      _hasLowercase = pass.contains(RegExp(r'[a-z]'));
-      _hasNumber = pass.contains(RegExp(r'[0-9]'));
-      _hasSpecial = pass.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
+      _hasLength = pass.length >= 10;
+      
+      
+      
+      
     });
   }
 
   bool _isFormValid() {
     return _hasLength &&
-           _hasUppercase &&
-           _hasLowercase &&
-           _hasNumber &&
-           _hasSpecial &&
-           _currentPasswordController.text.isNotEmpty &&
-           _newPasswordController.text == _confirmPasswordController.text;
+           _newPasswordController.text == _confirmPasswordController.text &&
+           _currentPasswordController.text.isNotEmpty;
   }
 
   String _getStrengthText() {
-    int score = [_hasLength, _hasUppercase, _hasLowercase, _hasNumber, _hasSpecial]
-        .where((e) => e)
-        .length;
+    int score = _hasLength ? 4 : 0;
     
     if (score <= 1) return 'Débil';
     if (score <= 3) return 'Media';
@@ -70,9 +64,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }
 
   Color _getStrengthColor(ThemeData theme) {
-    int score = [_hasLength, _hasUppercase, _hasLowercase, _hasNumber, _hasSpecial]
-        .where((e) => e)
-        .length;
+    int score = _hasLength ? 4 : 0;
     
     if (score <= 1) return theme.colorScheme.error;
     if (score <= 3) return AppColorsLight.warning;
@@ -192,11 +184,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                         ],
                       ),
                       const SizedBox(height: DesignTokens.spacing12),
-                      _buildChecklistItem(theme, 'Al menos 8 caracteres', _hasLength),
-                      _buildChecklistItem(theme, 'Una letra mayúscula', _hasUppercase),
-                      _buildChecklistItem(theme, 'Una letra minúscula', _hasLowercase),
-                      _buildChecklistItem(theme, 'Un número', _hasNumber),
-                      _buildChecklistItem(theme, 'Un carácter especial', _hasSpecial),
+                      _buildChecklistItem(theme, 'Al menos 10 caracteres', _hasLength),
+                      
+                      
+                      
+                      
                     ],
                   ),
                 ),

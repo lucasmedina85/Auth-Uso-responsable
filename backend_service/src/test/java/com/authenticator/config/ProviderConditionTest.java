@@ -16,7 +16,7 @@ public class ProviderConditionTest {
 
     @Test
     public void testMockProviderLoadedByDefault() {
-        contextRunner.withPropertyValues("spring.profiles.active=dev").run(context -> {
+        contextRunner.withPropertyValues("spring.profiles.active=dev", "app.jwt.secret=dGhpcy1pcy1hLWR1bW15LXNlY3JldC1rZXktZm9yLWRldmVsb3BtZW50LW9ubHktdGhhdC1tdXN0LWJlLXJlcGxhY2VkLWF0LWxlYXN0LTI1Ni1iaXRz").run(context -> {
             assertThat(context).hasSingleBean(IdentityVerificationProvider.class);
             assertThat(context).getBean(IdentityVerificationProvider.class)
                     .isInstanceOf(MockVerificationProvider.class);
@@ -25,7 +25,7 @@ public class ProviderConditionTest {
 
     @Test
     public void testDiditProviderLoadedWhenPropertyIsDidit() {
-        contextRunner.withPropertyValues("spring.profiles.active=dev", "app.identity-provider=didit").run(context -> {
+        contextRunner.withPropertyValues("spring.profiles.active=dev", "app.identity-provider=didit", "app.jwt.secret=dGhpcy1pcy1hLWR1bW15LXNlY3JldC1rZXktZm9yLWRldmVsb3BtZW50LW9ubHktdGhhdC1tdXN0LWJlLXJlcGxhY2VkLWF0LWxlYXN0LTI1Ni1iaXRz").run(context -> {
             assertThat(context).hasSingleBean(IdentityVerificationProvider.class);
             assertThat(context).getBean(IdentityVerificationProvider.class)
                     .isInstanceOf(DiditVerificationProvider.class);

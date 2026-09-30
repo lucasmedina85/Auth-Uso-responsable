@@ -13,3 +13,6 @@ Compuesta por una App móvil en Flutter y un backend de validación en Spring Bo
 
 *Nota de seguridad: Los tests locales y la base H2 en memoria exponen APIs protegidas por un esquema Fail-Closed. En producción, la conexión con PostgreSQL y el manejo de JWT_SECRET deben pasarse siempre por variables de entorno seguras.*
 
+
+### Seguridad y Deuda Técnica
+- **Nota sobre Logging**: Actualmente la semilla de encriptación local (`secretSeed` en `database_log_service.dart`) se encuentra almacenada sin cifrar. Como mejora futura, debería migrarse al `SecureStorageService` o protegerse mediante KeyStore/Keychain nativo, derivando la llave de la autenticación biométrica o PIN del usuario.

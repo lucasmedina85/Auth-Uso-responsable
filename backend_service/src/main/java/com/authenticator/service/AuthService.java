@@ -34,6 +34,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final long refreshTokenExpirationMs;
+    private final String dummyHash;
 
     public AuthService(UserRepository userRepository, RefreshTokenRepository refreshTokenRepository,
                        RevokedTokenRepository revokedTokenRepository, PasswordEncoder passwordEncoder,
@@ -44,6 +45,7 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.refreshTokenExpirationMs = refreshTokenExpirationMs;
+        this.dummyHash = passwordEncoder.encode("dummy");
     }
 
     private String sha256(String data) {
@@ -72,7 +74,7 @@ public class AuthService {
     public AuthResponse login(LoginRequest request) {
         Optional<User> optUser = userRepository.findByEmail(request.getEmail());
         if (optUser.isEmpty()) {
-            passwordEncoder.matches(request.getPassword(), passwordEncoder.encode("dummy"));
+            passwordEncoder.matches(request.getPassword(), dummyHash);
             throw new SecurityException("Credenciales inválidas");
         }
 
@@ -154,5 +156,24 @@ public class AuthService {
             String tokenHash = sha256(refreshToken);
             refreshTokenRepository.findByTokenHash(tokenHash).ifPresent(refreshTokenRepository::delete);
         }
+    }
+
+    @Transactional
+    public AuthResponse changePassword(String userId, String currentPassword, String newPassword) {
+        User user = userRepository.findById(UUID.fromString(userId))
+                .orElseThrow(() -> new SecurityException("Usuario no encontrado"));
+                
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new SecurityException("Contraseña actual incorrecta");
+        }
+        
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        
+        // Revocar todos los tokens
+        refreshTokenRepository.deleteByUser_Id(user.getId());
+        
+        // Generar nuevos tokens
+        return generateTokens(user);
     }
 }

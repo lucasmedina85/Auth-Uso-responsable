@@ -117,20 +117,10 @@ class PasswordStrengthIndicator extends StatelessWidget {
     required this.password,
   });
 
-  bool get hasMinLength => password.length >= 8;
-  bool get hasUppercase => password.contains(RegExp(r'[A-Z]'));
-  bool get hasLowercase => password.contains(RegExp(r'[a-z]'));
-  bool get hasNumber => password.contains(RegExp(r'[0-9]'));
-  bool get hasSpecial => password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
+    bool get hasMinLength => password.length >= 10;
 
   int get strengthScore {
-    int score = 0;
-    if (hasMinLength) score++;
-    if (hasUppercase) score++;
-    if (hasLowercase) score++;
-    if (hasNumber) score++;
-    if (hasSpecial) score++;
-    return score;
+    return hasMinLength ? 5 : 0;
   }
 
   @override
@@ -143,16 +133,7 @@ class PasswordStrengthIndicator extends StatelessWidget {
         // Visual Progress Bar
         Row(
           children: List.generate(5, (index) {
-            Color color;
-            if (strengthScore == 0) {
-              color = theme.colorScheme.surfaceContainerHighest;
-            } else if (strengthScore < 3) {
-              color = AppColorsLight.error;
-            } else if (strengthScore < 5) {
-              color = AppColorsLight.warning;
-            } else {
-              color = AppColorsLight.success;
-            }
+            Color color = strengthScore > 0 ? AppColorsLight.success : theme.colorScheme.surfaceContainerHighest;
 
             return Expanded(
               child: Container(
@@ -171,11 +152,7 @@ class PasswordStrengthIndicator extends StatelessWidget {
         const SizedBox(height: DesignTokens.spacing12),
         
         // Requirements Checklist
-        _buildRequirement(context, 'Al menos 8 caracteres', hasMinLength),
-        _buildRequirement(context, 'Una letra mayúscula', hasUppercase),
-        _buildRequirement(context, 'Una letra minúscula', hasLowercase),
-        _buildRequirement(context, 'Un número', hasNumber),
-        _buildRequirement(context, 'Un carácter especial', hasSpecial),
+        _buildRequirement(context, 'Al menos 10 caracteres', hasMinLength),
       ],
     );
   }

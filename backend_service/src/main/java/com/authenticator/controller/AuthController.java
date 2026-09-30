@@ -80,4 +80,18 @@ public class AuthController {
         authService.logout(accessToken, refreshToken);
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(org.springframework.security.core.Authentication authentication, @Valid @RequestBody com.authenticator.dto.ChangePasswordRequest request) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        String userId = (String) authentication.getPrincipal();
+        try {
+            AuthResponse response = authService.changePassword(userId, request.getCurrentPassword(), request.getNewPassword());
+            return ResponseEntity.ok(response);
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
+    }
 }

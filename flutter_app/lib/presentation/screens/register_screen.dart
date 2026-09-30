@@ -36,11 +36,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (_emailController.text.trim().isEmpty) return false;
     // Simple email validation
     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(_emailController.text.trim())) return false;
-    if (_password.length < 8) return false;
-    if (!_password.contains(RegExp(r'[A-Z]'))) return false;
-    if (!_password.contains(RegExp(r'[a-z]'))) return false;
-    if (!_password.contains(RegExp(r'[0-9]'))) return false;
-    if (!_password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) return false;
+    if (_password.length < 10) return false;
     if (_password != _confirmPasswordController.text) return false;
     if (!_acceptedTerms) return false;
     
