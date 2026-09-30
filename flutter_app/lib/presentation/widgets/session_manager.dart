@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../logic/secure_storage_service.dart';
+import '../../services/session_service.dart';
 
 class SessionManager extends StatefulWidget {
   final Widget child;
@@ -20,7 +20,7 @@ class _SessionManagerState extends State<SessionManager> with WidgetsBindingObse
   Timer? _inactivityTimer;
   DateTime? _backgroundTime;
   final int _timeoutMinutes = 5;
-  final SecureStorageService _secureStorage = SecureStorageService();
+  
   bool _isLoggedOut = false;
 
   @override
@@ -50,7 +50,7 @@ class _SessionManagerState extends State<SessionManager> with WidgetsBindingObse
   Future<void> _logoutDueToInactivity() async {
     _isLoggedOut = true;
     _inactivityTimer?.cancel();
-    await _secureStorage.logout();
+    await SessionService.logout();
     
     // Navegar a la pantalla de login (o bienvenida) eliminando todo el stack anterior.
     widget.navigatorKey.currentState?.pushNamedAndRemoveUntil('/login', (route) => false);

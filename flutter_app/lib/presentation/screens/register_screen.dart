@@ -1,4 +1,4 @@
-import '../../logic/auth_service.dart';
+import '../../services/session_service.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
 import '../widgets/buttons.dart';
@@ -48,7 +48,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _isProcessing = true;
     });
     
-    await AuthService.register(
+    await SessionService.register(
       _emailController.text,
       _passwordController.text,
       _nameController.text + " " + _lastNameController.text

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../core/network/dio_client.dart';
+import '../../services/session_service.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../core/theme/app_theme.dart';
 import '../widgets/buttons.dart';
@@ -71,44 +73,50 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     return AppColorsLight.success;
   }
 
-  void _handleSubmit() {
-    if (_currentPasswordController.text != 'admin123') { // Mock check
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('La contraseña actual no es correcta.'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
-      return;
-    }
+  bool _isProcessing = false;
 
-    // Show Confirmation Dialog
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('¿Cambiar contraseña?'),
-        content: const Text('Tu contraseña será actualizada y las sesiones activas podrían requerir una nueva autenticación.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Go back to previous screen
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Contraseña actualizada correctamente.'),
-                  backgroundColor: AppColorsLight.success,
-                ),
-              );
-            },
-            child: const Text('Confirmar'),
-          ),
-        ],
-      ),
-    );
+  void _handleSubmit() async {
+    setState(() {
+      _isProcessing = true;
+    });
+
+    try {
+      final dio = DioClient().dio;
+      final response = await dio.post('/auth/change-password', data: {
+        'currentPassword': _currentPasswordController.text,
+        'newPassword': _newPasswordController.text
+      });
+
+      if (response.statusCode == 200) {
+        // Save new tokens
+        await SessionService.saveTokens(response.data['accessToken'], response.data['refreshToken']);
+        
+        if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Contraseña actualizada correctamente.'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            Navigator.pop(context); // Go back
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('La contraseña actual no es correcta o hubo un error.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+    }
   }
 
   @override
@@ -219,7 +227,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               
               PrimaryButton(
                 text: 'Cambiar contraseña',
-                onPressed: _isFormValid() ? _handleSubmit : null,
+                onPressed: _isFormValid() && !_isProcessing ? _handleSubmit : null,
+                isLoading: _isProcessing,
               ),
             ],
           ),

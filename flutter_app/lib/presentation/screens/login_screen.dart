@@ -1,8 +1,8 @@
-import '../../logic/auth_service.dart';
+import '../../services/session_service.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
 import '../widgets/buttons.dart';
-import '../../logic/secure_storage_service.dart';
+
 import '../widgets/inputs.dart';
 import '../widgets/auth_components.dart';
 
@@ -37,12 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _isProcessing = true;
     });
     
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
-    
-    // Save credentials to Secure Storage (Opcion A)
-    final secureStorage = SecureStorageService();
-    await secureStorage.saveCredentials(
+    bool success = await SessionService.login(
       _emailController.text,
       _passwordController.text,
     );
@@ -51,12 +46,24 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         _isProcessing = false;
       });
-      // Navigate to dashboard for existing user, passing the email
-      Navigator.pushReplacementNamed(
-        context, 
-        '/dashboard',
-        arguments: _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : 'Usuario',
-      );
+      
+      if (success) {
+        String? status = await SessionService.fetchUserStatus();
+        if (status == "REGISTERED") {
+            Navigator.pushReplacementNamed(context, '/permissions');
+        } else if (status == "LOCALLY_VERIFIED" || status == "REMOTELY_VERIFIED" || status == "PENDING_VERIFICATION") {
+            Navigator.pushReplacementNamed(context, '/dashboard');
+        } else {
+            Navigator.pushReplacementNamed(context, '/dashboard');
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Credenciales inválidas.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 

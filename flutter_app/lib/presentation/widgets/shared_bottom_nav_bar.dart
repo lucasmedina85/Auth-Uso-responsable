@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
-import '../../logic/secure_storage_service.dart';
+import '../../services/session_service.dart';
 import '../../main.dart';
 
 class SharedBottomNavBar extends StatelessWidget {
@@ -128,8 +128,7 @@ class SharedBottomNavBar extends StatelessWidget {
                   ),
                   onTap: () async {
                     Navigator.pop(context); // Cerrar bottom sheet
-                    final secureStorage = SecureStorageService();
-                    await secureStorage.logout();
+                    await SessionService.logout();
                     if (context.mounted) {
                       Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
                     }

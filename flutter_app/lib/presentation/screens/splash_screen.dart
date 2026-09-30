@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../services/session_service.dart';
 
 /// Screen 01 - Splash Screen
 /// Initializes the application and transitions to the Device Security Check.
@@ -33,9 +34,23 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _controller.forward();
 
     // Redirect to Device Security Check after 2.5 seconds
-    _redirectTimer = Timer(const Duration(milliseconds: 2500), () {
+    _redirectTimer = Timer(const Duration(milliseconds: 2500), () async {
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/device_security');
+
+        await SessionService.initializeAndCleanLegacy();
+        bool loggedIn = await SessionService.isLoggedIn();
+        if (loggedIn) {
+            String? status = await SessionService.fetchUserStatus();
+            if (status == "REGISTERED") {
+                Navigator.pushReplacementNamed(context, '/permissions');
+            } else if (status != null) {
+                Navigator.pushReplacementNamed(context, '/dashboard');
+            } else {
+                Navigator.pushReplacementNamed(context, '/login');
+            }
+        } else {
+            Navigator.pushReplacementNamed(context, '/device_security');
+        }
       }
     });
   }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import '../../logic/secure_storage_service.dart';
+import '../../services/session_service.dart';
 import '../../core/theme/design_tokens.dart';
 import '../widgets/buttons.dart';
 import '../widgets/inputs.dart';
