@@ -14,7 +14,7 @@ spring:
 
 app:
   jwt:
-    secret: ${JWT_SECRET:dGhpcy1pcy1hLWR1bW15LXNlY3JldC1rZXktZm9yLWRldmVsb3BtZW50LW9ubHktdGhhdC1tdXN0LWJlLXJlcGxhY2VkLWF0LWxlYXN0LTI1Ni1iaXRz}
+    secret: ${JWT_SECRET:}
     access-token-expiration-ms: 900000 # 15 min
     refresh-token-expiration-ms: 604800000 # 7 days
 

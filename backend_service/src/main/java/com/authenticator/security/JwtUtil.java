@@ -19,7 +19,14 @@ public class JwtUtil {
 
     public JwtUtil(@Value("${app.jwt.secret}") String secret,
                    @Value("${app.jwt.access-token-expiration-ms:900000}") long accessTokenExpirationMs) {
-        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        if (secret == null || secret.trim().isEmpty()) {
+            throw new IllegalArgumentException("JWT Secret must be configured");
+        }
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            throw new IllegalArgumentException("JWT Secret must be at least 256 bits (32 bytes)");
+        }
+        this.key = Keys.hmacShaKeyFor(keyBytes);
         this.accessTokenExpirationMs = accessTokenExpirationMs;
     }
 

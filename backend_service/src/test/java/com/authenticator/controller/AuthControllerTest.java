@@ -8,6 +8,9 @@ import com.authenticator.repository.RefreshTokenRepository;
 import com.authenticator.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import com.authenticator.security.JwtUtil;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -25,6 +28,30 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("dev")
 public class AuthControllerTest {
 
+    @Test
+    public void logout_AddsJtiToDenylist() throws Exception {
+        User user = new User();
+        user.setEmail("logout@example.com");
+        user.setPasswordHash("hash");
+        user.setStatus(com.authenticator.domain.UserStatus.REGISTERED);
+        user = userRepository.save(user);
+
+        String token = jwtUtil.generateAccessToken(user.getId().toString());
+
+        // Call logout
+        mockMvc.perform(post("/auth/logout")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        // Second call to protected endpoint should fail (401)
+        mockMvc.perform(MockMvcRequestBuilders.get("/users/me")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Autowired
+    private JwtUtil jwtUtil;
+    
     @Autowired
     private MockMvc mockMvc;
 

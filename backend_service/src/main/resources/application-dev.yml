@@ -13,3 +13,7 @@ spring:
     console:
       enabled: true
       path: /h2-console
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dGhpcy1pcy1hLWR1bW15LXNlY3JldC1rZXktZm9yLWRldmVsb3BtZW50LW9ubHktdGhhdC1tdXN0LWJlLXJlcGxhY2VkLWF0LWxlYXN0LTI1Ni1iaXRz}

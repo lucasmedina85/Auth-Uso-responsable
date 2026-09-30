@@ -5,10 +5,12 @@ import com.authenticator.exception.BusinessDeclinedException;
 import com.authenticator.exception.ProviderTimeoutException;
 import com.authenticator.exception.ProviderUnavailableException;
 import org.springframework.stereotype.Service;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.util.UUID;
 
 @Service("mockProvider")
+@ConditionalOnProperty(name = "app.identity-provider", havingValue = "mock", matchIfMissing = true)
 public class MockVerificationProvider implements IdentityVerificationProvider {
 
     private final MockDatabase mockDatabase;

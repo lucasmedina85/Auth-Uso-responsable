@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -18,6 +19,9 @@ public class AuthController {
 
     private final AuthService authService;
     private final RateLimitingService rateLimitingService;
+    
+    @Value("${app.trust-x-forwarded-for:false}")
+    private boolean trustXForwardedFor;
 
     public AuthController(AuthService authService, RateLimitingService rateLimitingService) {
         this.authService = authService;
@@ -25,11 +29,13 @@ public class AuthController {
     }
 
     private String getClientIP(HttpServletRequest request) {
-        String xfHeader = request.getHeader("X-Forwarded-For");
-        if (xfHeader == null) {
-            return request.getRemoteAddr();
+        if (trustXForwardedFor) {
+            String xfHeader = request.getHeader("X-Forwarded-For");
+            if (xfHeader != null && !xfHeader.isEmpty()) {
+                return xfHeader.split(",")[0].trim();
+            }
         }
-        return xfHeader.split(",")[0];
+        return request.getRemoteAddr();
     }
 
     @PostMapping("/register")

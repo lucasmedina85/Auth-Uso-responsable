@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
@@ -21,6 +22,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Service("diditProvider")
+@ConditionalOnProperty(name = "app.identity-provider", havingValue = "didit")
 public class DiditVerificationProvider implements IdentityVerificationProvider {
 
     @Value("${app.didit.api-key:}")
