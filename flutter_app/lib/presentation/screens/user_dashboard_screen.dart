@@ -156,15 +156,13 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: _buildActionCard(context, Icons.apps, 'Aplicaciones
-Vinculadas', () {
+                    child: _buildActionCard(context, Icons.apps, 'Aplicaciones\nVinculadas', () {
                       Navigator.pushNamed(context, '/linked_apps_list');
                     }),
                   ),
                   const SizedBox(width: DesignTokens.spacing16),
                   Expanded(
-                    child: _buildActionCard(context, Icons.notification_important, 'Simular Alerta
-(CU-0040)', () {
+                    child: _buildActionCard(context, Icons.notification_important, 'Simular Alerta\n(CU-0040)', () {
 
                       NotificationService().simulateBackendPush();
                     }),
