@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class ProviderConditionTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withUserConfiguration(AuthenticatorApplication.class);
+            .withUserConfiguration(AuthenticatorApplication.class, MockVerificationProvider.class, DiditVerificationProvider.class);
 
     @Test
     public void testMockProviderLoadedByDefault() {
