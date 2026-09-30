@@ -16,3 +16,13 @@ Compuesta por una App móvil en Flutter y un backend de validación en Spring Bo
 
 ### Seguridad y Deuda Técnica
 - **Nota sobre Logging**: Actualmente la semilla de encriptación local (`secretSeed` en `database_log_service.dart`) se encuentra almacenada sin cifrar. Como mejora futura, debería migrarse al `SecureStorageService` o protegerse mediante KeyStore/Keychain nativo, derivando la llave de la autenticación biométrica o PIN del usuario.
+
+### Fase 2: Configuración de Entorno (Frontend)
+Para ejecutar Flutter con conexión al backend, la aplicación soporta variables de compilación inyectadas.
+Ejecuta la app usando `--dart-define` para sobrescribir la configuración base:
+
+```bash
+flutter run --dart-define=API_URL=http://tu-ip:8080
+```
+- Si no se provee un `API_URL`, el frontend intentará conectarse a `http://10.0.2.2:8080` por defecto (emulador Android).
+- Por motivos de seguridad (FLAG_SECURE implementada), el tráfico HTTP sin TLS (sin `https`) solo está permitido corriendo en modo Debug (`kDebugMode`). Si generas un APK Release, el `DioClient` forzará una excepción si usas una url con `http://`.
