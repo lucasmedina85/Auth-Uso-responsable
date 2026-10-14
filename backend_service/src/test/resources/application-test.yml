@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driverClassName: org.h2.Driver
+    username: sa
+    password: password
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: validate
+  h2:
+    console:
+      enabled: false
+
+app:
+  jwt:
+    secret: dGhpcy1pcy1hLWR1bW15LXNlY3JldC1rZXktZm9yLWRldmVsb3BtZW50LW9ubHktdGhhdC1tdXN0LWJlLXJlcGxhY2VkLWF0LWxlYXN0LTI1Ni1iaXRz
+  blockchain:
+    session-hash-secret: test-only-mock-session-hash-secret-32bytes-for-unit-tests
+    dni-search-secret: test-only-mock-dni-search-secret-32bytes-for-unit-tests
+  revocation:
+    store: memory
+  oauth:
+    pairwise-secret: test-only-mock-pairwise-secret-32bytes-for-unit-tests
+    audit-secret: test-only-mock-pairwise-secret-32bytes-for-unit-tests
+  devices:
+    hmac-secret: test-only-mock-device-hmac-secret-32bytes-for-unit-tests
+  auth:
+    anti-enumeration-secret: test-only-mock-anti-enum-secret-32bytes-for-unit-tests

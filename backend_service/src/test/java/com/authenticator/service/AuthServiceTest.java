@@ -20,7 +20,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-@ActiveProfiles("dev")
+@ActiveProfiles("test")
 @Transactional
 public class AuthServiceTest {
 
@@ -47,8 +47,12 @@ public class AuthServiceTest {
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
 
+    @Autowired
+    private com.authenticator.repository.AuthAuditLogRepository authAuditLogRepository;
+
     @BeforeEach
     public void setup() {
+        authAuditLogRepository.deleteAll();
         refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
     }
