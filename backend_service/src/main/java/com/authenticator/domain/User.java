@@ -25,6 +25,9 @@ public class User {
     @Column(nullable = false)
     private UserStatus status;
 
+    @Column(nullable = false, length = 50)
+    private String role = "USER";
+
     @Column(name = "dni_hash", unique = true)
     private String dniHash;
 

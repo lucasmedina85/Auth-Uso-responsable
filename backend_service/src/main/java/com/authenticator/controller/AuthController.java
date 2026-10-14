@@ -6,11 +6,11 @@ import com.authenticator.dto.RefreshRequest;
 import com.authenticator.dto.RegisterRequest;
 import com.authenticator.service.AuthService;
 import com.authenticator.service.RateLimitingService;
+import com.authenticator.util.IpResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -19,23 +19,17 @@ public class AuthController {
 
     private final AuthService authService;
     private final RateLimitingService rateLimitingService;
-    
-    @Value("${app.trust-x-forwarded-for:false}")
-    private boolean trustXForwardedFor;
+    private final IpResolver ipResolver;
+    private final com.authenticator.service.ReauthService reauthService;
 
-    public AuthController(AuthService authService, RateLimitingService rateLimitingService) {
+    public AuthController(AuthService authService,
+                          RateLimitingService rateLimitingService,
+                          IpResolver ipResolver,
+                          com.authenticator.service.ReauthService reauthService) {
         this.authService = authService;
         this.rateLimitingService = rateLimitingService;
-    }
-
-    private String getClientIP(HttpServletRequest request) {
-        if (trustXForwardedFor) {
-            String xfHeader = request.getHeader("X-Forwarded-For");
-            if (xfHeader != null && !xfHeader.isEmpty()) {
-                return xfHeader.split(",")[0].trim();
-            }
-        }
-        return request.getRemoteAddr();
+        this.ipResolver = ipResolver;
+        this.reauthService = reauthService;
     }
 
     @PostMapping("/register")
@@ -46,16 +40,50 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
-        String ip = getClientIP(httpRequest);
-        if (!rateLimitingService.tryConsume(ip)) {
-            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body("Rate limit exceeded");
+        String ip = ipResolver.resolveClientIp(httpRequest);
+        String deviceId = httpRequest.getHeader("X-Device-Id");
+        if (!rateLimitingService.tryConsume("ip:" + ip)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body("Demasiados intentos, probá más tarde");
         }
 
         try {
-            AuthResponse response = authService.login(request);
+            AuthResponse response = authService.login(request, ip, deviceId);
             return ResponseEntity.ok(response);
         } catch (SecurityException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+            if (e.getMessage() != null && e.getMessage().contains("bloqueada")) {
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body("Demasiados intentos, probá más tarde");
+            }
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Credenciales inválidas");
+        }
+    }
+
+    @PostMapping("/reauth")
+    public ResponseEntity<?> reauth(org.springframework.security.core.Authentication authentication,
+                                    @Valid @RequestBody com.authenticator.dto.ReauthRequest request,
+                                    HttpServletRequest httpRequest) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        java.util.UUID userId;
+        try {
+            userId = java.util.UUID.fromString((String) authentication.getPrincipal());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String ip = ipResolver.resolveClientIp(httpRequest);
+        String deviceId = httpRequest.getHeader("X-Device-Id");
+        try {
+            com.authenticator.dto.ReauthResponse response = reauthService.reauthenticate(userId, request, ip, deviceId);
+            return ResponseEntity.ok(response);
+        } catch (SecurityException e) {
+            if (e.getMessage() != null && e.getMessage().contains("bloqueada")) {
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(java.util.Map.of("error", "account_locked", "message", e.getMessage()));
+            }
+            if (e.getMessage() != null && e.getMessage().contains("Demasiados intentos")) {
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(java.util.Map.of("error", "rate_limit_exceeded", "message", e.getMessage()));
+            }
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(java.util.Map.of("error", "invalid_password", "message", "Contraseña inválida"));
         }
     }
 
@@ -71,13 +99,16 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<?> logout(@RequestHeader(value = "Authorization", required = false) String authHeader,
-                                    @RequestBody(required = false) RefreshRequest request) {
+                                    @RequestBody(required = false) RefreshRequest request,
+                                    HttpServletRequest httpRequest) {
         String accessToken = null;
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             accessToken = authHeader.substring(7);
         }
         String refreshToken = request != null ? request.getRefreshToken() : null;
-        authService.logout(accessToken, refreshToken);
+        String ip = ipResolver.resolveClientIp(httpRequest);
+        String deviceId = httpRequest.getHeader("X-Device-Id");
+        authService.logout(accessToken, refreshToken, ip, deviceId);
         return ResponseEntity.ok().build();
     }
 

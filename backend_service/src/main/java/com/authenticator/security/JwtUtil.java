@@ -31,13 +31,19 @@ public class JwtUtil {
     }
 
     public String generateAccessToken(String subject) {
-        return Jwts.builder()
+        return generateAccessToken(subject, null);
+    }
+
+    public String generateAccessToken(String subject, String role) {
+        var builder = Jwts.builder()
                 .subject(subject)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + accessTokenExpirationMs))
-                .id(UUID.randomUUID().toString()) // jti
-                .signWith(key)
-                .compact();
+                .id(UUID.randomUUID().toString());
+        if (role != null && !role.trim().isEmpty()) {
+            builder.claim("role", role);
+        }
+        return builder.signWith(key).compact();
     }
 
     public Claims validateTokenAndGetClaims(String token) {
@@ -50,5 +56,9 @@ public class JwtUtil {
 
     public String getJti(String token) {
         return validateTokenAndGetClaims(token).getId();
+    }
+
+    public String getUserId(String token) {
+        return validateTokenAndGetClaims(token).getSubject();
     }
 }

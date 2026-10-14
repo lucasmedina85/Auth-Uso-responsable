@@ -8,15 +8,29 @@ import org.springframework.stereotype.Service;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import jakarta.annotation.PostConstruct;
 
 @Service("mockProvider")
 @ConditionalOnProperty(name = "app.identity-provider", havingValue = "mock", matchIfMissing = true)
 public class MockVerificationProvider implements IdentityVerificationProvider {
 
+    private static final Logger logger = LoggerFactory.getLogger(MockVerificationProvider.class);
+
     private final MockDatabase mockDatabase;
 
     public MockVerificationProvider(MockDatabase mockDatabase) {
         this.mockDatabase = mockDatabase;
+    }
+
+    @PostConstruct
+    public void logMockProviderWarning() {
+        logger.warn("****************************************************************************************");
+        logger.warn("⚠️  [ADVERTENCIA DE SEGURIDAD]: Proveedor de Identidad/RENAPER ACTIVO es 'MOCK'");
+        logger.warn("⚠️  Las validaciones biométricas y de padrón se resuelven en memoria local.");
+        logger.warn("⚠️  Este modo es EXCLUSIVO para desarrollo offline. NO conectar a RENAPER en este perfil.");
+        logger.warn("****************************************************************************************");
     }
 
     private void simulateLatencyAndErrors(String dni) {

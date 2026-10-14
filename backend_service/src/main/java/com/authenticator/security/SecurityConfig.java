@@ -21,6 +21,9 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:8080}")
+    private String allowedOrigins;
+
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
@@ -39,7 +42,13 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/register", "/auth/login", "/auth/refresh").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll() // only for dev ideally
-                .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                .requestMatchers("/actuator/health", "/actuator/info", "/blockchain/status").permitAll()
+                .requestMatchers("/.well-known/jwks.json", "/.well-known/export-keys.json", "/oauth/client-info", "/oauth/token", "/oauth/introspect", "/oauth/sandbox/callback").permitAll()
+                .requestMatchers("/admin/blockchain/status").hasAnyRole("ADMIN", "MONITORING")
+                .requestMatchers("/admin/blockchain/records-by-dni").hasAnyRole("ADMIN", "AUDITOR")
+                .requestMatchers("/admin/forensics/**").hasAnyRole("ADMIN", "AUDITOR")
+                .requestMatchers("/admin/blockchain/**").hasAnyRole("ADMIN", "MONITORING", "AUDITOR")
+                .requestMatchers("/admin/**").hasAnyRole("ADMIN", "MONITORING", "AUDITOR")
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
@@ -53,7 +62,14 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.addAllowedOriginPattern("*"); // In production, restrict this
+        if (allowedOrigins != null && !allowedOrigins.isBlank()) {
+            for (String origin : allowedOrigins.split(",")) {
+                String trimmed = origin.trim();
+                if (!trimmed.isEmpty()) {
+                    config.addAllowedOrigin(trimmed);
+                }
+            }
+        }
         config.addAllowedHeader("*");
         config.addAllowedMethod("*");
         source.registerCorsConfiguration("/**", config);

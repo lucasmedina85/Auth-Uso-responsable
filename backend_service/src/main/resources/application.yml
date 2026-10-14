@@ -17,6 +17,8 @@ app:
     secret: ${JWT_SECRET:}
     access-token-expiration-ms: 900000 # 15 min
     refresh-token-expiration-ms: 604800000 # 7 days
+  auth:
+    anti-enumeration-secret: ${ANTI_ENUMERATION_SECRET:dev-dummy-anti-enum-secret-at-least-256-bits}
 
   identity-provider: ${IDENTITY_PROVIDER:mock} # mock, didit, official
   didit:
@@ -26,8 +28,94 @@ app:
   thresholds:
     face-match: ${FACE_MATCH_THRESHOLD:90}
     risk: ${RISK_THRESHOLD:80}
+  risk:
+    timezone: ${RISK_TIMEZONE:America/Argentina/Buenos_Aires}
+    thresholds:
+      review: ${RISK_THRESHOLD_REVIEW:50}
+      block: ${RISK_THRESHOLD_BLOCK:${app.thresholds.risk:80}}
+    weights:
+      liveness: ${RISK_WEIGHT_LIVENESS:100}
+      face-match: ${RISK_WEIGHT_FACE_MATCH:100}
+      document-not-latest: ${RISK_WEIGHT_DOC_NOT_LATEST:50}
+      schedule-night: ${RISK_WEIGHT_SCHEDULE_NIGHT:20}
+      schedule-school: ${RISK_WEIGHT_SCHEDULE_SCHOOL:10}
+      network-high: ${RISK_WEIGHT_NETWORK_HIGH:30}
+      network-medium: ${RISK_WEIGHT_NETWORK_MEDIUM:15}
+      network-client-untrusted: ${RISK_WEIGHT_NETWORK_CLIENT:5}
+      behavior-low-adult: ${RISK_WEIGHT_BEHAVIOR_LOW_ADULT:10}
+      facial-failed-attempts: ${RISK_WEIGHT_FACIAL_FAILED_ATTEMPTS:15}
+    thresholds-behavior:
+      adult-min: ${RISK_BEHAVIOR_ADULT_MIN:0.35}
+    missing-policy:
+      liveness: ${RISK_MISSING_LIVENESS:PENALIZE}
+      face-match: ${RISK_MISSING_FACE_MATCH:PENALIZE}
+      document: ${RISK_MISSING_DOCUMENT:PENALIZE}
+      network: ${RISK_MISSING_NETWORK:IGNORE}
+      behavior: ${RISK_MISSING_BEHAVIOR:IGNORE}
+    missing-penalties:
+      liveness: ${RISK_PENALTY_MISSING_LIVENESS:50}
+      face-match: ${RISK_PENALTY_MISSING_FACE_MATCH:50}
+      document: ${RISK_PENALTY_MISSING_DOCUMENT:50}
+      network: ${RISK_PENALTY_MISSING_NETWORK:10}
+      behavior: ${RISK_PENALTY_MISSING_BEHAVIOR:10}
   circuit-breaker:
     failures: ${CIRCUIT_BREAKER_FAILURES:3}
+  security:
+    trusted-proxies: ${TRUSTED_PROXIES:}
+    vpn:
+      provider: ${VPN_PROVIDER:mock}
+      blocked-ranges:
+        - "10.8.0.0/24"
+        - "198.51.100.0/24"
+        - "172.16.0.0/12"
+      blocked-asns:
+        - "AS16509"
+        - "AS14061"
+        - "AS9009"
+  revocation:
+    store: ${REVOCATION_STORE:memory}
+  blockchain:
+    enabled: ${BLOCKCHAIN_ENABLED:true}
+    provider: ${BLOCKCHAIN_PROVIDER:mock}
+    network: ${BLOCKCHAIN_NETWORK:mock}
+    config-version: ${BLOCKCHAIN_CONFIG_VERSION:1.0.0}
+    session-hash-secret: ${SESSION_HASH_SECRET}
+    dni-search-secret: ${DNI_SEARCH_SECRET:dev-dummy-dni-search-secret-must-be-at-least-256-bits}
+    max-retries: ${BLOCKCHAIN_MAX_RETRIES:3}
+    retry-interval-ms: ${BLOCKCHAIN_RETRY_INTERVAL_MS:30000}
+    consensus:
+      min-peers: ${BLOCKCHAIN_MIN_PEERS:3}
+      max-block-drift: ${BLOCKCHAIN_MAX_BLOCK_DRIFT:3}
+      timeout-ms: ${BLOCKCHAIN_TIMEOUT_MS:5000}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
+  oauth:
+    pairwise-secret: ${OAUTH_PAIRWISE_SECRET:dev-dummy-oauth-pairwise-secret-must-be-at-least-256-bits}
+    audit-secret: ${OAUTH_AUDIT_SECRET:${app.oauth.pairwise-secret}}
+    issuer: ${OAUTH_ISSUER:https://auth.example.com}
+    access-token-expiration-ms: ${OAUTH_TOKEN_EXPIRATION_MS:300000}
+    authorization-code-expiration-ms: ${OAUTH_CODE_EXPIRATION_MS:60000}
+    risk-decision-max-age-minutes: ${OAUTH_RISK_MAX_AGE_MINUTES:60}
+    cleanup-interval-ms: ${OAUTH_CLEANUP_INTERVAL_MS:300000}
+    rate-limit:
+      max-requests-per-minute: ${OAUTH_RATE_LIMIT_MAX_REQUESTS:30}
+      client-secret-max-failures: ${OAUTH_CLIENT_SECRET_MAX_FAILURES:5}
+      client-secret-lockout-seconds: ${OAUTH_CLIENT_SECRET_LOCKOUT_SECONDS:300}
+    rsa:
+      key-id: ${OAUTH_RSA_KEY_ID:sip-rsa-key-v1}
+      private-key: ${OAUTH_RSA_PRIVATE_KEY:}
+      public-key: ${OAUTH_RSA_PUBLIC_KEY:}
+  devices:
+    hmac-secret: ${DEVICE_HMAC_SECRET:dev-dummy-device-hmac-secret-at-least-256-bits}
+    max-per-user: ${DEVICE_MAX_PER_USER:5}
+    min-age-hours: ${DEVICE_MIN_AGE_HOURS:24}
+  security-score:
+    base-score: ${SECURITY_SCORE_BASE:15}
+    unverified-max-score: ${SECURITY_SCORE_UNVERIFIED_MAX:55}
+    failed-attempts-window-hours: ${SECURITY_SCORE_FAILED_ATTEMPTS_WINDOW_HOURS:24}
+    levels:
+      alto-min: ${SECURITY_SCORE_ALTO_MIN:75}
+      medio-min: ${SECURITY_SCORE_MEDIO_MIN:45}
 
 management:
   endpoints:

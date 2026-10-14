@@ -8,3 +8,18 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: validate
+
+app:
+  blockchain:
+    session-hash-secret: ${SESSION_HASH_SECRET}
+    dni-search-secret: ${DNI_SEARCH_SECRET}
+  oauth:
+    pairwise-secret: ${OAUTH_PAIRWISE_SECRET}
+  devices:
+    hmac-secret: ${DEVICE_HMAC_SECRET}
+  auth:
+    anti-enumeration-secret: ${ANTI_ENUMERATION_SECRET}
+  forensic:
+    aes-key: ${FORENSIC_AES_KEY}
+
+
