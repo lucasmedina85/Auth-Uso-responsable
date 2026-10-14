@@ -10,6 +10,7 @@ import '../../logic/ocr_processor.dart';
 import '../../logic/document_validator.dart';
 import '../../logic/age_calculator.dart';
 import '../widgets/buttons.dart';
+import '../widgets/behavior_tracker.dart';
 import 'package:intl/intl.dart';
 enum FlutterCaptureStep { front, validateFront, back, validateBack, cameraError }
 
@@ -497,8 +498,10 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
     final isValidationStep = _step == FlutterCaptureStep.validateFront || _step == FlutterCaptureStep.validateBack;
     final currentCapturedPath = _step == FlutterCaptureStep.validateFront ? _frontPath : _backPath;
 
-    return Scaffold(
-      appBar: AppBar(
+    return BehaviorTracker(
+      screenName: 'DniCaptureScreenFlutter',
+      child: Scaffold(
+        appBar: AppBar(
         title: Text(
           _step == FlutterCaptureStep.front || _step == FlutterCaptureStep.validateFront
               ? 'DNI Frente'
@@ -722,8 +725,9 @@ class _DniCaptureScreenFlutterState extends State<DniCaptureScreenFlutter> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildChecklistItem(BuildContext context, String text) {
     final theme = Theme.of(context);

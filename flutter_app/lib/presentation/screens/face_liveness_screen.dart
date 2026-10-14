@@ -5,11 +5,15 @@ import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
 import '../../core/theme/design_tokens.dart';
-import '../../logic/security_data_service.dart';
 import '../../logic/face_biometric_service.dart';
 import '../../core/network/dio_client.dart';
 import 'package:dio/dio.dart';
 import 'security_alert_screen.dart';
+import 'emulator_blocked_screen.dart';
+import '../../services/device_integrity_service.dart';
+import '../../services/network_security_service.dart';
+import '../../services/behavioral_biometrics_service.dart';
+import '../widgets/behavior_tracker.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import '../widgets/buttons.dart';
 
@@ -171,17 +175,74 @@ class _FaceLivenessScreenState extends State<FaceLivenessScreen> {
         return;
       }
 
-      // Phase 3: Integrate with POST /verification/local-result
+      // Cotejo 1:1 local contra RENAPER (calcula dinámicamente _lastFaceMatchScore)
+      final isMatch = await _biometricService.matchWithRenaperTemplate(face);
+      if (!isMatch) {
+        final attemptsLeft = FaceBiometricService.maxFailedAttempts - _biometricService.failedAttempts;
+        _showFailedMatch("Cotejo Fallido.\nEl rostro no coincide con el DNI.\nIntentos restantes: $attemptsLeft");
+        return;
+      }
+
+      // CU-0023: Envío de resultados y señales reales al Motor de Riesgo backend
       try {
         final dio = DioClient().dio;
-        // In a real app we'd pass a hashed version of the document number
+        final clientNetRisk = await NetworkSecurityService.checkVpnAndProxy();
+        final behaviorMetrics = BehavioralBiometricsService().getAggregatedMetrics();
+        final integrityResult = await DeviceIntegrityService.checkIntegrity();
+        
         final response = await dio.post('/verification/local-result', data: {
-           'dniHash': 'mocked_hash_from_liveness'
+           'dniHash': 'mocked_hash_from_liveness',
+           'emulatorDetected': integrityResult.isEmulator,
+           'deviceCompromised': integrityResult.isCompromised,
+           'clientVpnDetected': clientNetRisk.isVpn,
+           'clientProxyDetected': clientNetRisk.isProxy,
+           'behavioralAdultScore': behaviorMetrics.behavioralAdultScore,
+           'aggregatedBehaviorMetrics': behaviorMetrics.toMap(),
+           'livenessScore': _biometricService.lastLivenessScore,
+           'faceMatchScore': _biometricService.lastFaceMatchScore,
+           'isLatestDocument': true, // DNI vigente validado en paso previo
+           'failedFaceAttempts': _biometricService.failedAttempts,
         });
+
+        final decision = response.data['decision'];
+        final status = response.data['status'];
+
+        if (decision == 'REVISIÓN' || status == 'UNDER_REVIEW') {
+          if (!mounted) return;
+          Navigator.pushReplacementNamed(
+            context,
+            '/verification_review',
+            arguments: response.data,
+          );
+          return;
+        }
+
+        // Decisión AUTORIZAR / OK
+        if (!mounted) return;
+        setState(() {
+          _state = LivenessState.success;
+          _instruction = "¡Identidad Verificada Exitosamente!";
+        });
+        
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) Navigator.pushReplacementNamed(context, '/fingerprint');
+        return;
+
       } on DioException catch (apiError) {
+        if (!mounted) return;
         if (apiError.response?.statusCode == 403) {
            final errorCode = apiError.response?.data['errorCode'] ?? '';
-           if (errorCode == 'SPOOFING_DETECTED') {
+           final decision = apiError.response?.data['decision'];
+           if (errorCode == 'EMULATOR_DETECTED') {
+             Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (ctx) => const EmulatorBlockedScreen()), (route) => false);
+             return;
+           } else if (errorCode == 'RISK_BLOCKED' || decision == 'BLOQUEAR') {
+             Navigator.push(context, MaterialPageRoute(builder: (ctx) => const SecurityAlertScreen(
+               title: 'Validación Bloqueada por Seguridad',
+               message: 'El nivel de riesgo detectado supera los límites permitidos. La sesión ha sido bloqueada.',
+             )));
+             return;
+           } else if (errorCode == 'SPOOFING_DETECTED') {
              Navigator.push(context, MaterialPageRoute(builder: (ctx) => const SecurityAlertScreen(
                title: 'Suplantación de Identidad',
                message: 'El sistema ha detectado un intento de fraude biométrico. Su cuenta y dispositivos quedan bajo revisión.',
@@ -195,23 +256,7 @@ class _FaceLivenessScreenState extends State<FaceLivenessScreen> {
              return;
            }
         }
-      }
-
-      final isMatch = await _biometricService.matchWithRenaperTemplate(face);
-      
-      if (!mounted) return;
-
-      if (isMatch) {
-        setState(() {
-          _state = LivenessState.success;
-          _instruction = "¡Identidad Verificada Exitosamente!";
-        });
-        
-        await Future.delayed(const Duration(seconds: 2));
-        if (mounted) Navigator.pushReplacementNamed(context, '/fingerprint');
-      } else {
-        final attemptsLeft = FaceBiometricService.maxFailedAttempts - _biometricService.failedAttempts;
-        _showFailedMatch("Cotejo Fallido.\nEl rostro no coincide con el DNI.\nIntentos restantes: $attemptsLeft");
+        rethrow;
       }
     } catch (e) {
       if (!mounted) return;
@@ -230,8 +275,10 @@ class _FaceLivenessScreenState extends State<FaceLivenessScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      backgroundColor: Colors.black, // Camera backdrop
+    return BehaviorTracker(
+      screenName: 'FaceLivenessScreen',
+      child: Scaffold(
+        backgroundColor: Colors.black, // Camera backdrop
       body: SafeArea(
         child: Stack(
           alignment: Alignment.center,
@@ -448,6 +495,7 @@ class _FaceLivenessScreenState extends State<FaceLivenessScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

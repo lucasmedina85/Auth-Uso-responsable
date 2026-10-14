@@ -4,6 +4,7 @@ import '../../core/theme/design_tokens.dart';
 import '../widgets/buttons.dart';
 import '../widgets/inputs.dart';
 import '../widgets/auth_components.dart';
+import '../widgets/behavior_tracker.dart';
 
 /// Screen 06 - Register Screen
 class RegisterScreen extends StatefulWidget {
@@ -76,8 +77,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
+    return BehaviorTracker(
+      screenName: 'RegisterScreen',
+      child: Scaffold(
+        appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -196,6 +199,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }
+

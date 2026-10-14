@@ -24,4 +24,15 @@ class ScreenLockService {
       return [];
     }
   }
+
+  /// Check if biometrics hardware and enrollment are present
+  Future<bool> hasBiometrics() async {
+    try {
+      final bool canCheck = await _localAuth.canCheckBiometrics;
+      final List<BiometricType> biometrics = await _localAuth.getAvailableBiometrics();
+      return canCheck && biometrics.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
 }

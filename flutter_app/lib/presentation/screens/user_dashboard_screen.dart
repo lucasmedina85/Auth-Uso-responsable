@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -5,6 +6,8 @@ import 'package:intl/intl.dart';
 import '../../core/theme/design_tokens.dart';
 import '../widgets/security_score.dart';
 import '../widgets/shared_bottom_nav_bar.dart';
+import '../../models/security_score_model.dart';
+import '../../services/device_management_service.dart';
 
 /// Screen 39 - User Dashboard
 class UserDashboardScreen extends StatefulWidget {
@@ -15,13 +18,203 @@ class UserDashboardScreen extends StatefulWidget {
 }
 
 class _UserDashboardScreenState extends State<UserDashboardScreen> {
-  int _currentIndex = 0;
   String _lastConnection = 'Cargando...';
+  SecurityScoreModel? _securityScore;
 
   @override
   void initState() {
     super.initState();
-    _loadLastConnectionTime();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    await _loadLastConnectionTime();
+    _fetchSecurityScore();
+    DeviceManagementService().checkAndNotifyAlerts();
+  }
+
+  Future<void> _fetchSecurityScore() async {
+    if (!mounted) return;
+    final score = await DeviceManagementService().getSecurityScore();
+    if (mounted) {
+      setState(() {
+        _securityScore = score;
+      });
+    }
+  }
+
+  SecurityRiskLevel _mapLevelToRiskLevel(String? level) {
+    switch (level?.toUpperCase()) {
+      case 'ALTO':
+        return SecurityRiskLevel.secure;
+      case 'MEDIO':
+        return SecurityRiskLevel.medium;
+      case 'BAJO':
+      default:
+        return SecurityRiskLevel.high;
+    }
+  }
+
+  String _mapLevelToLabel(String? level) {
+    switch (level?.toUpperCase()) {
+      case 'ALTO':
+        return 'Alta Confianza';
+      case 'MEDIO':
+        return 'Confianza Media';
+      case 'BAJO':
+      default:
+        return 'Baja Confianza';
+    }
+  }
+
+  void _showScoreBreakdownModal(BuildContext context) {
+    final theme = Theme.of(context);
+    final score = _securityScore?.score ?? 15;
+    final factors = _securityScore?.factors ?? [];
+    final levelLabel = _mapLevelToLabel(_securityScore?.level);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(DesignTokens.radiusLarge)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.65,
+          minChildSize: 0.4,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (context, scrollController) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: DesignTokens.spacing24,
+                vertical: DesignTokens.spacing20,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: DesignTokens.spacing16),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Nivel de Seguridad',
+                        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: theme.primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(DesignTokens.radiusSmall),
+                        ),
+                        child: Text(
+                          '$score / 100',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: theme.primaryColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: DesignTokens.spacing8),
+                  Text(
+                    'Estado actual: $levelLabel. Factores evaluados de forma segura en el servidor.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const Divider(height: DesignTokens.spacing24),
+                  Expanded(
+                    child: factors.isEmpty
+                        ? Center(
+                            child: Text(
+                              'Sin factores registrados',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            controller: scrollController,
+                            itemCount: factors.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            itemBuilder: (context, index) {
+                              final factor = factors[index];
+                              final isPositive = factor.status == 'POSITIVE';
+                              final isNegative = factor.status == 'NEGATIVE';
+                              final contribText = factor.contribution >= 0
+                                  ? '+${factor.contribution}'
+                                  : '${factor.contribution}';
+
+                              Color chipColor = theme.colorScheme.outlineVariant;
+                              Color chipTextColor = theme.colorScheme.onSurface;
+                              IconData statusIcon = Icons.info_outline;
+
+                              if (isPositive) {
+                                chipColor = Colors.green.withOpacity(0.15);
+                                chipTextColor = Colors.green.shade800;
+                                statusIcon = Icons.check_circle_outline;
+                              } else if (isNegative) {
+                                chipColor = Colors.red.withOpacity(0.15);
+                                chipTextColor = Colors.red.shade800;
+                                statusIcon = Icons.remove_circle_outline;
+                              }
+
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(
+                                  statusIcon,
+                                  color: chipTextColor,
+                                ),
+                                title: Text(
+                                  factor.name,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  factor.description,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                trailing: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: chipColor,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    contribText,
+                                    style: theme.textTheme.labelMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: chipTextColor,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _loadLastConnectionTime() async {
@@ -31,13 +224,17 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     if (isoDate != null) {
       final DateTime date = DateTime.parse(isoDate);
       final String formattedDate = DateFormat("dd/MM/yyyy, hh:mm a").format(date);
-      setState(() {
-        _lastConnection = 'Última vez: $formattedDate';
-      });
+      if (mounted) {
+        setState(() {
+          _lastConnection = 'Última vez: $formattedDate';
+        });
+      }
     } else {
-      setState(() {
-        _lastConnection = 'Última vez: Nunca';
-      });
+      if (mounted) {
+        setState(() {
+          _lastConnection = 'Última vez: Nunca';
+        });
+      }
     }
   }
 
@@ -80,9 +277,11 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               const SizedBox(height: DesignTokens.spacing32),
 
               // Security Score
-              const SecurityScoreCard(
-                score: 98,
-                level: SecurityRiskLevel.secure,
+              SecurityScoreCard(
+                score: _securityScore?.score ?? 15,
+                level: _mapLevelToRiskLevel(_securityScore?.level),
+                customLabel: _securityScore != null ? _mapLevelToLabel(_securityScore!.level) : null,
+                onTap: () => _showScoreBreakdownModal(context),
               ),
               const SizedBox(height: DesignTokens.spacing32),
 
@@ -110,7 +309,9 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Alta Confianza',
+                            _securityScore != null
+                                ? _mapLevelToLabel(_securityScore!.level)
+                                : 'Calculando nivel...',
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
@@ -160,13 +361,14 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                       Navigator.pushNamed(context, '/linked_apps_list');
                     }),
                   ),
-                  const SizedBox(width: DesignTokens.spacing16),
-                  Expanded(
-                    child: _buildActionCard(context, Icons.notification_important, 'Simular Alerta\n(CU-0040)', () {
-
-                      NotificationService().simulateBackendPush();
-                    }),
-                  ),
+                  if (kDebugMode) ...[
+                    const SizedBox(width: DesignTokens.spacing16),
+                    Expanded(
+                      child: _buildActionCard(context, Icons.notification_important, '[DEBUG]\nSimular Alerta', () {
+                        NotificationService().simulateBackendPush();
+                      }),
+                    ),
+                  ],
                 ],
               ),
             ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../../core/theme/design_tokens.dart';
+import '../../services/device_integrity_service.dart';
 import '../widgets/buttons.dart';
 import '../widgets/status_badges.dart';
 
@@ -15,6 +16,7 @@ class DeviceSecurityScreen extends StatefulWidget {
 class _DeviceSecurityScreenState extends State<DeviceSecurityScreen> {
   bool _isChecking = true;
   bool _isSecure = false;
+  bool _isEmulator = false;
 
   @override
   void initState() {
@@ -23,16 +25,34 @@ class _DeviceSecurityScreenState extends State<DeviceSecurityScreen> {
   }
 
   Future<void> _performSecurityChecks() async {
+    // CU-0033/CU-0034: Verificación unificada de integridad de dispositivo (Emulador y Root)
+    final integrityResult = await DeviceIntegrityService.checkIntegrity();
+    if (integrityResult.isCompromised && !integrityResult.bypassed) {
+      if (mounted) {
+        setState(() {
+          _isChecking = false;
+          _isSecure = false;
+          _isEmulator = true;
+        });
+        await Future.delayed(const Duration(milliseconds: 1000));
+        if (mounted) {
+          Navigator.pushNamedAndRemoveUntil(context, '/emulator_blocked', (route) => false);
+        }
+      }
+      return;
+    }
+
     // Simulate checking device security
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 2));
     if (mounted) {
       setState(() {
         _isChecking = false;
         _isSecure = true; // Assume secure for MVP flow
+        _isEmulator = false;
       });
       
       // Auto advance to welcome if secure
-      Future.delayed(const Duration(seconds: 2), () {
+      Future.delayed(const Duration(seconds: 1), () {
         if (mounted && _isSecure) {
           Navigator.pushReplacementNamed(context, '/welcome');
         }
@@ -83,6 +103,12 @@ class _DeviceSecurityScreenState extends State<DeviceSecurityScreen> {
               _buildCheckItem(
                 'Análisis Root/Jailbreak',
                 _isChecking ? BadgeStatus.pending : (_isSecure ? BadgeStatus.verified : BadgeStatus.error),
+                theme,
+              ),
+              const SizedBox(height: DesignTokens.spacing16),
+              _buildCheckItem(
+                'Entorno Físico / Emulador (CU-0034)',
+                _isChecking ? BadgeStatus.pending : (_isEmulator ? BadgeStatus.error : BadgeStatus.verified),
                 theme,
               ),
               

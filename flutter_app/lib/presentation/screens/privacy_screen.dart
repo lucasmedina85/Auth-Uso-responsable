@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
+import '../widgets/behavior_tracker.dart';
 
 class PrivacyScreen extends StatelessWidget {
   const PrivacyScreen({super.key});
@@ -8,8 +9,10 @@ class PrivacyScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
+    return BehaviorTracker(
+      screenName: 'PrivacyScreen',
+      child: Scaffold(
+        appBar: AppBar(
         title: const Text('Política de Privacidad'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -165,8 +168,9 @@ class PrivacyScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSection(BuildContext context, String title, String content) {
     final theme = Theme.of(context);

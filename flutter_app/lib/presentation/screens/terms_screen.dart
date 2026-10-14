@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
+import '../widgets/behavior_tracker.dart';
 
 class TermsScreen extends StatelessWidget {
   const TermsScreen({super.key});
@@ -8,8 +9,10 @@ class TermsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
+    return BehaviorTracker(
+      screenName: 'TermsScreen',
+      child: Scaffold(
+        appBar: AppBar(
         title: const Text('Términos y Condiciones'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -128,8 +131,9 @@ class TermsScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSection(BuildContext context, String title, String content) {
     final theme = Theme.of(context);

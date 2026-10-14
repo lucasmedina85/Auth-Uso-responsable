@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../widgets/behavior_tracker.dart';
 
 /// Flutter implementation of CU-0042: Formulario Visual de Procesamiento Manual de OCR Fallido.
 class ManualOcrScreenFlutter extends StatefulWidget {
@@ -101,8 +102,10 @@ class _ManualOcrScreenFlutterState extends State<ManualOcrScreenFlutter> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+    return BehaviorTracker(
+      screenName: 'ManualOcrScreenFlutter',
+      child: Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           'Ingreso Manual de DNI',
@@ -335,6 +338,7 @@ class _ManualOcrScreenFlutterState extends State<ManualOcrScreenFlutter> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

@@ -9,8 +9,11 @@ class DioClient {
   late Dio dio;
   bool _isRefreshing = false;
   
-  // baseUrl from --dart-define (or default to 10.0.2.2 for Android emulator testing)
-  static const String baseUrl = String.fromEnvironment('API_URL', defaultValue: 'http://10.0.2.2:8080');
+  // baseUrl from --dart-define (API_BASE_URL or API_URL, default to 10.0.2.2 for Android emulator testing)
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: String.fromEnvironment('API_URL', defaultValue: 'http://10.0.2.2:8080'),
+  );
 
   // Global event stream for auth failures like Concurrent Access
   static final StreamController<String> authEventStream = StreamController<String>.broadcast();
@@ -36,10 +39,20 @@ class DioClient {
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';
         }
+        final deviceId = await SessionService.getDeviceId();
+        options.headers['X-Device-Id'] = deviceId;
         return handler.next(options);
       },
       onError: (DioException e, handler) async {
         if (e.response?.statusCode == 401) {
+          final data = e.response?.data;
+          final isDeviceRevoked = (data is Map && data['error'] == 'DEVICE_REVOKED') ||
+              (data is String && data.contains('DEVICE_REVOKED'));
+          if (isDeviceRevoked) {
+            log('Dispositivo revocado detectado (DEVICE_REVOKED). Limpiando sesión...');
+            await SessionService.clearTokens();
+            return handler.next(e);
+          }
           log('401 Unauthorized interceptado. Iniciando refresh...');
           bool refreshed = await _refreshToken();
           if (refreshed) {

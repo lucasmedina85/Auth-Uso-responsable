@@ -31,13 +31,63 @@ import 'presentation/screens/device_activity_timeline_screen.dart';
 import 'presentation/screens/change_password_screen.dart';
 import 'presentation/screens/validation_config_screen.dart';
 import 'presentation/screens/transfer_accounts_screen.dart';
+import 'presentation/screens/emulator_blocked_screen.dart';
+import 'presentation/screens/verification_review_screen.dart';
+import 'presentation/screens/oauth_consent_screen.dart';
 import 'presentation/widgets/session_manager.dart';
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
+
+void _handleDeepLink(String? urlString) {
+  if (urlString == null || urlString.isEmpty) return;
+  final uri = Uri.tryParse(urlString);
+  if (uri == null) return;
+
+  final isAuthorize = (uri.path == '/oauth/authorize' ||
+      (uri.scheme == 'sipauth' && uri.host == 'authorize'));
+  if (!isAuthorize) return;
+
+  final clientId = uri.queryParameters['client_id'] ?? '';
+  final redirectUri = uri.queryParameters['redirect_uri'] ?? '';
+  final state = uri.queryParameters['state'] ?? '';
+  final nonce = uri.queryParameters['nonce'];
+  final codeChallenge = uri.queryParameters['code_challenge'] ?? '';
+  final codeChallengeMethod = uri.queryParameters['code_challenge_method'] ?? 'S256';
+  final scope = uri.queryParameters['scope'] ?? 'openid';
+
+  globalNavigatorKey.currentState?.push(
+    MaterialPageRoute(
+      builder: (_) => OauthConsentScreen(
+        clientId: clientId,
+        redirectUri: redirectUri,
+        state: state,
+        nonce: nonce,
+        codeChallenge: codeChallenge,
+        codeChallengeMethod: codeChallengeMethod,
+        scope: scope,
+      ),
+    ),
+  );
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   const MethodChannel('com.authenticator/security').invokeMethod('enableSecureMode');
-  
+
+  // Consulta link inicial si la app fue lanzada mediante App Link
+  const MethodChannel('com.authenticator/deeplink').invokeMethod<String>('getInitialLink').then((link) {
+    if (link != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleDeepLink(link);
+      });
+    }
+  });
+
+  const MethodChannel('com.authenticator/deeplink').setMethodCallHandler((call) async {
+    if (call.method == 'onLink') {
+      final link = call.arguments?.toString();
+      _handleDeepLink(link);
+    }
+  });
 
   await NotificationService().init();
   
@@ -108,6 +158,20 @@ class AuthenticatorApp extends StatelessWidget {
         '/change_password': (context) => const ChangePasswordScreen(),
         '/validation_config': (context) => const ValidationConfigScreen(),
         '/transfer_accounts': (context) => const TransferAccountsScreen(),
+        '/emulator_blocked': (context) => const EmulatorBlockedScreen(),
+        '/verification_review': (context) => const VerificationReviewScreen(),
+        '/oauth_consent': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
+          return OauthConsentScreen(
+            clientId: args['clientId']?.toString() ?? '',
+            redirectUri: args['redirectUri']?.toString() ?? '',
+            state: args['state']?.toString() ?? '',
+            nonce: args['nonce']?.toString(),
+            codeChallenge: args['codeChallenge']?.toString() ?? '',
+            codeChallengeMethod: args['codeChallengeMethod']?.toString() ?? 'S256',
+            scope: args['scope']?.toString() ?? 'openid',
+          );
+        },
         
         // Legacy routes kept for compatibility
         '/logs': (context) => const LogsScreen(),

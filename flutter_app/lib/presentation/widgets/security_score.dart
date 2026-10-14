@@ -12,11 +12,15 @@ enum SecurityRiskLevel {
 class SecurityScoreCard extends StatelessWidget {
   final int score; // 0 to 100
   final SecurityRiskLevel level;
+  final VoidCallback? onTap;
+  final String? customLabel;
 
   const SecurityScoreCard({
     super.key,
     required this.score,
     required this.level,
+    this.onTap,
+    this.customLabel,
   });
 
   @override
@@ -27,39 +31,48 @@ class SecurityScoreCard extends StatelessWidget {
     Color getColor() {
       switch (level) {
         case SecurityRiskLevel.low:
-          return isDark ? AppColorsDark.success : AppColorsLight.success;
         case SecurityRiskLevel.secure:
-          return isDark ? AppColorsDark.primary : AppColorsLight.primary;
+          return isDark ? AppColorsDark.success : AppColorsLight.success;
         case SecurityRiskLevel.medium:
           return isDark ? AppColorsDark.warning : AppColorsLight.warning;
         case SecurityRiskLevel.high:
-          return isDark ? AppColorsDark.error : AppColorsLight.error;
         case SecurityRiskLevel.critical:
-          return isDark ? AppColorsDark.critical : AppColorsLight.critical;
+          return isDark ? AppColorsDark.error : AppColorsLight.error;
       }
     }
 
     String getLabel() {
+      if (customLabel != null && customLabel!.isNotEmpty) {
+        return customLabel!;
+      }
       switch (level) {
-        case SecurityRiskLevel.low: return "Low Risk";
-        case SecurityRiskLevel.secure: return "Secure";
-        case SecurityRiskLevel.medium: return "Medium Risk";
-        case SecurityRiskLevel.high: return "High Risk";
-        case SecurityRiskLevel.critical: return "Critical Risk";
+        case SecurityRiskLevel.low:
+        case SecurityRiskLevel.secure:
+          return "Alta Confianza";
+        case SecurityRiskLevel.medium:
+          return "Confianza Media";
+        case SecurityRiskLevel.high:
+        case SecurityRiskLevel.critical:
+          return "Baja Confianza";
       }
     }
 
     final color = getColor();
 
-    return Container(
-      padding: const EdgeInsets.all(DesignTokens.spacing16),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(DesignTokens.radiusLarge),
-        border: Border.all(color: theme.colorScheme.outlineVariant, width: 1),
-      ),
-      child: Row(
-        children: [
+        child: Container(
+          padding: const EdgeInsets.all(DesignTokens.spacing16),
+          decoration: BoxDecoration(
+            color: theme.cardTheme.color,
+            borderRadius: BorderRadius.circular(DesignTokens.radiusLarge),
+            border: Border.all(color: theme.colorScheme.outlineVariant, width: 1),
+          ),
+          child: Row(
+            children: [
           // Score Circle
           SizedBox(
             width: 64,
@@ -113,8 +126,15 @@ class SecurityScoreCard extends StatelessWidget {
               ],
             ),
           ),
+          if (onTap != null)
+            Icon(
+              Icons.chevron_right,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }

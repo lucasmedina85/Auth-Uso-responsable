@@ -1,6 +1,6 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:convert';
 import 'dart:developer';
 import 'package:permission_handler/permission_handler.dart';
@@ -9,7 +9,7 @@ class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
   
-  WebSocketChannel? _channel;
+  StreamController<String>? _mockStreamController;
 
   factory NotificationService() {
     return _instance;
@@ -40,42 +40,30 @@ class NotificationService {
   }
 
   void _connectWebSocket() {
-    try {
-      // Usamos wss://echo.websocket.events temporalmente para mock o se puede cambiar a tu WS backend local.
-      _channel = WebSocketChannel.connect(
-        Uri.parse('wss://echo.websocket.events'),
-      );
-      
-      _channel!.stream.listen((message) {
-        // En producción el backend mandará un JSON con la alerta
-        // Para simular, cada mensaje que el WS eco envíe, mostramos notificación si cumple un formato.
-        try {
-          final data = jsonDecode(message);
-          if (data['type'] == 'SECURITY_ALERT') {
-             showNotification(data['title'], data['body']);
-          }
-        } catch (e) {
-          // Si no es JSON ignora
-        }
-      },
-      onDone: () {
-         // Auto-reconnect
-         Future.delayed(const Duration(seconds: 5), _connectWebSocket);
-      },
-      onError: (e) {
-         log('WebSocket Error: $e');
-      });
-      
-    } catch (e) {
-       log('Error iniciando WebSocket: $e');
+    if (!kDebugMode) {
+      log('WebSocket en modo producción desactivado o a la espera de endpoint seguro del backend.');
+      return;
     }
+    log('[ADVERTENCIA DE SEGURIDAD] Canal de notificaciones WebSocket en MODO SIMULADO / MOCK en memoria activo.');
+    _mockStreamController = StreamController<String>.broadcast();
+    _mockStreamController!.stream.listen((message) {
+      try {
+        final data = jsonDecode(message);
+        if (data['type'] == 'SECURITY_ALERT') {
+          showNotification(data['title'], data['body']);
+        }
+      } catch (e) {
+        log('Error procesando mensaje WebSocket mock: $e');
+      }
+    });
   }
 
   // Helper method to simulate backend pushing an event to us
   void simulateBackendPush() {
-    _channel?.sink.add(jsonEncode({
+    if (!kDebugMode) return;
+    _mockStreamController?.add(jsonEncode({
       'type': 'SECURITY_ALERT',
-      'title': 'Alerta de Seguridad (CU-0040)',
+      'title': 'Alerta de Seguridad (CU-0040) [SIMULADO]',
       'body': 'Hemos detectado un intento de inicio de sesión inusual.',
     }));
   }

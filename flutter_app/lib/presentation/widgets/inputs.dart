@@ -57,7 +57,7 @@ class StandardTextField extends StatelessWidget {
             errorText: errorText,
             prefixIcon: prefixIcon,
             suffixIcon: isSuccess 
-                ? Icon(Icons.check_circle, color: AppColorsLight.success)
+                ? const Icon(Icons.check_circle, color: AppColorsLight.success)
                 : null,
             filled: true,
             fillColor: enabled 
@@ -98,6 +98,7 @@ class PasswordTextField extends StatefulWidget {
   final String? hint;
   final String? errorText;
   final TextEditingController? controller;
+  final bool enabled;
   final ValueChanged<String>? onChanged;
 
   const PasswordTextField({
@@ -106,6 +107,7 @@ class PasswordTextField extends StatefulWidget {
     this.hint,
     this.errorText,
     this.controller,
+    this.enabled = true,
     this.onChanged,
   });
 
@@ -127,12 +129,13 @@ class _PasswordTextFieldState extends State<PasswordTextField> {
         Text(
           widget.label,
           style: theme.textTheme.labelLarge?.copyWith(
-            color: theme.colorScheme.onSurface,
+            color: widget.enabled ? theme.colorScheme.onSurface : theme.disabledColor,
           ),
         ),
         const SizedBox(height: DesignTokens.spacing8),
         TextFormField(
           controller: widget.controller,
+          enabled: widget.enabled,
           obscureText: _obscureText,
           onChanged: widget.onChanged,
           style: theme.textTheme.bodyLarge,

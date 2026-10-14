@@ -39,6 +39,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _redirectTimer = Timer(const Duration(milliseconds: 2500), () async {
       if (mounted) {
         final versionCheck = await ConfigService.checkVersionRequirement();
+        if (!mounted) return;
         if (versionCheck != null && versionCheck['needsUpdate'] == true && versionCheck['isMandatory'] == true) {
             Navigator.pushReplacement(
               context,
@@ -55,13 +56,33 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
         await SessionService.initializeAndCleanLegacy();
         bool loggedIn = await SessionService.isLoggedIn();
+        if (!mounted) return;
         if (loggedIn) {
-            String? status = await SessionService.fetchUserStatus();
-            if (status == "REGISTERED") {
-                Navigator.pushReplacementNamed(context, '/permissions');
-            } else if (status != null) {
-                Navigator.pushReplacementNamed(context, '/dashboard');
+            bool remember = await SessionService.isRememberSessionEnabled();
+            if (!mounted) return;
+            if (!remember) {
+                // Si "Mantener sesión iniciada" está desactivado, la sesión no sobrevive al reinicio
+                await SessionService.clearTokens();
+                if (!mounted) return;
+                Navigator.pushReplacementNamed(context, '/login');
+                return;
+            }
+
+            // Desbloqueo biométrico/PIN obligatorio para proteger los tokens guardados
+            bool unlocked = await SessionService.unlockSessionWithBiometrics();
+            if (!mounted) return;
+            if (unlocked) {
+                String? status = await SessionService.fetchUserStatus();
+                if (!mounted) return;
+                if (status == "REGISTERED") {
+                    Navigator.pushReplacementNamed(context, '/permissions');
+                } else if (status != null) {
+                    Navigator.pushReplacementNamed(context, '/dashboard');
+                } else {
+                    Navigator.pushReplacementNamed(context, '/login');
+                }
             } else {
+                // Si el usuario cancela o falla el desbloqueo, derivar a Login sin usar tokens
                 Navigator.pushReplacementNamed(context, '/login');
             }
         } else {
