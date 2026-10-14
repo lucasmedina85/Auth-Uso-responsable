@@ -5,3 +5,8 @@ backend_service/data/
 *.trace.db
 .env
 *.py
+*.apk
+*.aab
+*.keystore
+*.jks
+flutter_app/build/

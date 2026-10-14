@@ -74,6 +74,12 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Redis for distributed token revocation (CU-0037) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
         <!-- Spring Boot Actuator for health checks and metrics -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
