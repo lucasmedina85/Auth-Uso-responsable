@@ -9,6 +9,8 @@ import '../widgets/buttons.dart';
 import '../widgets/inputs.dart';
 import '../widgets/auth_components.dart';
 import '../widgets/behavior_tracker.dart';
+import '../widgets/demo_mode_banner.dart';
+import '../../core/config/app_config.dart';
 
 /// Screen 05 - Login Screen
 class LoginScreen extends StatefulWidget {
@@ -194,63 +196,106 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: DesignTokens.spacing24,
-            vertical: DesignTokens.spacing16,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Iniciar sesión',
-                style: theme.textTheme.headlineLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -0.5,
+        child: Column(
+          children: [
+            const DemoModeBanner(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spacing24,
+                  vertical: DesignTokens.spacing16,
                 ),
-              ),
-              const SizedBox(height: DesignTokens.spacing8),
-              Text(
-                'Ingresá con los datos de tu cuenta para continuar.',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              
-              const SizedBox(height: DesignTokens.spacing48),
-              
-              Semantics(
-                label: 'Campo de texto para correo electrónico',
-                textField: true,
-                child: StandardTextField(
-                  label: 'Correo electrónico',
-                  hint: 'nombre@ejemplo.com',
-                  controller: _emailController,
-                  errorText: _emailError,
-                  enabled: !_isProcessing,
-                  keyboardType: TextInputType.emailAddress,
-                  onChanged: (_) {
-                    if (_emailError != null) setState(() => _emailError = null);
-                  },
-                ),
-              ),
-              const SizedBox(height: DesignTokens.spacing24),
-              Semantics(
-                label: 'Campo de texto para contraseña',
-                textField: true,
-                child: PasswordTextField(
-                  label: 'Contraseña',
-                  hint: 'Ingresá tu contraseña',
-                  controller: _passwordController,
-                  errorText: _passwordError,
-                  enabled: !_isProcessing,
-                  onChanged: (_) {
-                    if (_passwordError != null) setState(() => _passwordError = null);
-                  },
-                ),
-              ),
-              
-              const SizedBox(height: DesignTokens.spacing16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Iniciar sesión',
+                      style: theme.textTheme.headlineLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: DesignTokens.spacing8),
+                    Text(
+                      'Ingresá con los datos de tu cuenta para continuar.',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    
+                    if (AppConfig.isLocal) ...[
+                      const SizedBox(height: DesignTokens.spacing16),
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            _emailController.text = 'demo@sip.local';
+                            _passwordController.text = 'Demo12345!';
+                            _emailError = null;
+                            _passwordError = null;
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer.withOpacity(0.4),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: theme.colorScheme.primary.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.key_rounded, size: 16, color: theme.colorScheme.primary),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Cargar credenciales demo: demo@sip.local / Demo12345!',
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: theme.colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: DesignTokens.spacing24),
+                    ] else ...[
+                      const SizedBox(height: DesignTokens.spacing48),
+                    ],
+                    
+                    Semantics(
+                      label: 'Campo de texto para correo electrónico',
+                      textField: true,
+                      child: StandardTextField(
+                        label: 'Correo electrónico',
+                        hint: 'nombre@ejemplo.com',
+                        controller: _emailController,
+                        errorText: _emailError,
+                        enabled: !_isProcessing,
+                        keyboardType: TextInputType.emailAddress,
+                        onChanged: (_) {
+                          if (_emailError != null) setState(() => _emailError = null);
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: DesignTokens.spacing24),
+                    Semantics(
+                      label: 'Campo de texto para contraseña',
+                      textField: true,
+                      child: PasswordTextField(
+                        label: 'Contraseña',
+                        hint: 'Ingresá tu contraseña',
+                        controller: _passwordController,
+                        errorText: _passwordError,
+                        enabled: !_isProcessing,
+                        onChanged: (_) {
+                          if (_passwordError != null) setState(() => _passwordError = null);
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: DesignTokens.spacing16),
 
               Semantics(
                 label: 'Casilla para mantener la sesión iniciada',
@@ -344,11 +389,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ],
               ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
+      ],
     ),
-    );
+  ),
+),
+);
   }
 }

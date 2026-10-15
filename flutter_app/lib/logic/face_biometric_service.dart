@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'database_log_service.dart';
+import '../core/config/app_config.dart';
+import '../services/demo_mode_service.dart';
 
 class FaceBiometricService {
   static const int maxFailedAttempts = 3;
@@ -69,8 +71,35 @@ class FaceBiometricService {
   /// El puntaje (0-100) es generado estocásticamente y expuesto vía [lastFaceMatchScore]
   /// para ser enviado a /verification/local-result y procesado por el Motor de Riesgo (CU-0023).
   Future<bool> matchWithRenaperTemplate(Face capturedFace) async {
-    // Simulamos latencia de red contra RENAPER
-    await Future.delayed(const Duration(seconds: 2));
+    // Simulamos breve procesamiento
+    await Future.delayed(const Duration(milliseconds: 1200));
+
+    if (AppConfig.isLocal) {
+      final scenario = DemoModeService().currentScenario;
+      if (scenario == DemoScenario.SUPLANTACION) {
+        _failedAttempts++;
+        _lastFaceMatchScore = 18;
+        _lastLivenessScore = 25;
+        await DatabaseLogService().logEvent(
+          'BIOMETRIC_MATCH_FAILED',
+          'Suplantación detectada en cotejo facial (Modo Demo)',
+          'FAILED',
+        );
+        return false;
+      }
+
+      // Por defecto en demo local: 100% determinista y exitoso
+      _failedAttempts = 0;
+      _lastFaceMatchScore = 95;
+      _lastLivenessScore = 98;
+
+      await DatabaseLogService().logEvent(
+        'BIOMETRIC_MATCH', 
+        'Cotejo facial exitoso determinista (Modo Demo, score: 95%)', 
+        'SUCCESS'
+      );
+      return true;
+    }
 
     final randomFraction = Random().nextDouble();
 

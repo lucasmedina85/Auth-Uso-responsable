@@ -8,6 +8,7 @@ import '../widgets/security_score.dart';
 import '../widgets/shared_bottom_nav_bar.dart';
 import '../../models/security_score_model.dart';
 import '../../services/device_management_service.dart';
+import '../widgets/demo_mode_banner.dart';
 
 /// Screen 39 - User Dashboard
 class UserDashboardScreen extends StatefulWidget {
@@ -257,16 +258,20 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(DesignTokens.spacing24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Welcome Header
-              Text(
-                'Hola, $displayName',
-                style: theme.textTheme.headlineMedium,
-              ),
+        child: Column(
+          children: [
+            const DemoModeBanner(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(DesignTokens.spacing24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Welcome Header
+                    Text(
+                      'Hola, $displayName',
+                      style: theme.textTheme.headlineMedium,
+                    ),
               const SizedBox(height: DesignTokens.spacing8),
               Text(
                 'Tu identidad está verificada y segura.',
@@ -375,6 +380,9 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
           ),
         ),
       ),
+    ],
+  ),
+),
       bottomNavigationBar: SharedBottomNavBar(
         currentIndex: 0,
         displayName: displayName,

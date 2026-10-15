@@ -4,16 +4,15 @@ import '../../services/session_service.dart';
 import 'dart:developer';
 import 'dart:async';
 
+import '../config/app_config.dart';
+
 class DioClient {
   static final DioClient _instance = DioClient._internal();
   late Dio dio;
   bool _isRefreshing = false;
   
   // baseUrl from --dart-define (API_BASE_URL or API_URL, default to 10.0.2.2 for Android emulator testing)
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: String.fromEnvironment('API_URL', defaultValue: 'http://10.0.2.2:8080'),
-  );
+  static const String baseUrl = AppConfig.apiBaseUrl;
 
   // Global event stream for auth failures like Concurrent Access
   static final StreamController<String> authEventStream = StreamController<String>.broadcast();
@@ -23,7 +22,7 @@ class DioClient {
   }
 
   DioClient._internal() {
-    if (!kDebugMode && baseUrl.startsWith('http://')) {
+    if (!AppConfig.isLocal && !kDebugMode && baseUrl.startsWith('http://')) {
       throw Exception('HTTP sin TLS no está permitido en producción');
     }
 
@@ -35,6 +34,15 @@ class DioClient {
 
     dio.interceptors.add(QueuedInterceptorsWrapper(
       onRequest: (options, handler) async {
+        if (AppConfig.isLocal) {
+          return handler.reject(
+            DioException(
+              requestOptions: options,
+              error: 'Petición HTTP bloqueada: la aplicación está ejecutándose en modo 100% LOCAL',
+              type: DioExceptionType.cancel,
+            ),
+          );
+        }
         final token = await SessionService.getAccessToken();
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';

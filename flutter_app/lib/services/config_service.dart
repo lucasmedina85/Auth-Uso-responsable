@@ -3,8 +3,19 @@ import 'package:dio/dio.dart';
 import '../core/network/dio_client.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../core/config/app_config.dart';
+
 class ConfigService {
   static Future<Map<String, dynamic>?> checkVersionRequirement() async {
+    if (AppConfig.isLocal) {
+      // En modo 100% local no se ejecuta chequeo de versión de red
+      return {
+        'needsUpdate': false,
+        'currentVersion': '1.0.0',
+        'requiredVersion': '1.0.0',
+        'isMandatory': false,
+      };
+    }
     try {
       final dio = DioClient().dio;
       // In a real scenario, this fetches from GET /config/version

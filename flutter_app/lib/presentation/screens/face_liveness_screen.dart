@@ -16,6 +16,11 @@ import '../../services/behavioral_biometrics_service.dart';
 import '../widgets/behavior_tracker.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import '../widgets/buttons.dart';
+import '../../core/config/app_config.dart';
+import '../../core/database/app_database.dart';
+import '../../services/demo_mode_service.dart';
+import '../../services/session_service.dart';
+import '../widgets/demo_mode_banner.dart';
 
 enum LivenessState { initializing, readyToCapture, awaitingConfirmation, processing, success, failed, error }
 
@@ -184,6 +189,76 @@ class _FaceLivenessScreenState extends State<FaceLivenessScreen> {
       }
 
       // CU-0023: Envío de resultados y señales reales al Motor de Riesgo backend
+      if (AppConfig.isLocal) {
+        final scenario = DemoModeService().currentScenario;
+
+        if (scenario == DemoScenario.SUPLANTACION) {
+          if (!mounted) return;
+          Navigator.push(context, MaterialPageRoute(builder: (ctx) => const SecurityAlertScreen(
+            title: 'Suplantación de Identidad',
+            message: 'El sistema ha detectado un intento de fraude biométrico. Su cuenta y dispositivos quedan bajo revisión.',
+          )));
+          return;
+        }
+
+        if (scenario == DemoScenario.DNI_DENUNCIADO) {
+          if (!mounted) return;
+          Navigator.push(context, MaterialPageRoute(builder: (ctx) => const SecurityAlertScreen(
+            title: 'DNI Bloqueado',
+            message: 'Este documento ha sido reportado o figura en las listas de denegación. Contacte a la autoridad emisora.',
+          )));
+          return;
+        }
+
+        if (scenario == DemoScenario.BLOQUEO_RIESGO) {
+          if (!mounted) return;
+          Navigator.push(context, MaterialPageRoute(builder: (ctx) => const SecurityAlertScreen(
+            title: 'Validación Bloqueada por Seguridad',
+            message: 'El nivel de riesgo detectado supera los límites permitidos. La sesión ha sido bloqueada.',
+          )));
+          return;
+        }
+
+        if (scenario == DemoScenario.REVISION) {
+          if (!mounted) return;
+          Navigator.pushReplacementNamed(
+            context,
+            '/verification_review',
+            arguments: {
+              'decision': 'REVISIÓN',
+              'status': 'UNDER_REVIEW',
+              'riskScore': 65,
+              'factors': ['Horario no habitual detectado', 'Score biométrico intermedio'],
+            },
+          );
+          return;
+        }
+
+        // Decisión AUTORIZAR / OK
+        final activeEmail = await SessionService.getActiveUserEmail() ?? AppDatabase.demoEmail;
+        final user = await AppDatabase().getUserByEmail(activeEmail);
+        final userId = user?['id'] ?? AppDatabase.demoUserId;
+
+        await AppDatabase().updateUserStatus(userId, 'LOCALLY_VERIFIED');
+        await AppDatabase().logActivity(
+          userId: userId,
+          type: 'VERIFICATION',
+          action: 'Prueba Biométrica Facial',
+          description: 'Identidad validada exitosamente con score 96% (Modo Local Offline)',
+          severity: 'INFO',
+        );
+
+        if (!mounted) return;
+        setState(() {
+          _state = LivenessState.success;
+          _instruction = "¡Identidad Verificada Exitosamente!";
+        });
+        
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) Navigator.pushReplacementNamed(context, '/fingerprint');
+        return;
+      }
+
       try {
         final dio = DioClient().dio;
         final clientNetRisk = await NetworkSecurityService.checkVpnAndProxy();
@@ -297,6 +372,14 @@ class _FaceLivenessScreenState extends State<FaceLivenessScreen> {
                   child: CameraPreview(_cameraController!),
                 ),
               ),
+
+            // Demo Mode Banner
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: DemoModeBanner(),
+            ),
 
             // Top Header Bar: Video Recording Badge
             Positioned(
