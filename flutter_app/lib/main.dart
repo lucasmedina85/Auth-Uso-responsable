@@ -35,6 +35,7 @@ import 'presentation/screens/emulator_blocked_screen.dart';
 import 'presentation/screens/verification_review_screen.dart';
 import 'presentation/screens/oauth_consent_screen.dart';
 import 'presentation/screens/audit_chain_screen.dart';
+import 'presentation/screens/oauth_playground_screen.dart';
 import 'presentation/widgets/session_manager.dart';
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
 
@@ -175,6 +176,7 @@ class AuthenticatorApp extends StatelessWidget {
         },
         
         '/audit_chain': (context) => const AuditChainScreen(),
+        '/oauth_playground': (context) => const OauthPlaygroundScreen(),
         
         // Legacy routes kept for compatibility
         '/logs': (context) => const LogsScreen(),

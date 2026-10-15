@@ -1,6 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dio/dio.dart';
+import '../../core/config/app_config.dart';
+import '../../core/database/app_database.dart';
+import '../../core/security/local_crypto_helper.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/theme/design_tokens.dart';
 import '../widgets/buttons.dart';
@@ -51,6 +55,21 @@ class _OauthConsentScreenState extends State<OauthConsentScreen> {
       _isLoading = true;
       _errorMessage = null;
     });
+
+    if (AppConfig.isLocal) {
+      String name = 'Plataforma Externa';
+      if (widget.clientId == 'client_casino_sip_01' || widget.clientId.isEmpty) {
+        name = 'BetResponsable Online (Juego Responsable)';
+      } else {
+        name = 'Aplicación Simulada (${widget.clientId})';
+      }
+      setState(() {
+        _verifiedClientName = name;
+        _validatedRedirectUri = widget.redirectUri.isNotEmpty ? widget.redirectUri : 'sipauth://playground/callback';
+        _isLoading = false;
+      });
+      return;
+    }
 
     try {
       if (widget.clientInfoFetcher != null) {
@@ -108,6 +127,96 @@ class _OauthConsentScreenState extends State<OauthConsentScreen> {
       _isSubmitting = true;
     });
 
+    if (AppConfig.isLocal) {
+      final now = DateTime.now();
+      final tokenId = 'tok-${now.millisecondsSinceEpoch}';
+      final issuedAt = now.millisecondsSinceEpoch ~/ 1000;
+      final expiresAt = issuedAt + 3600;
+
+      // Payload RS256 simulado: Cero datos personales (CU-0027)
+      final header = base64Url.encode(utf8.encode(jsonEncode({'alg': 'RS256', 'typ': 'JWT'}))).replaceAll('=', '');
+      final claims = {
+        'sub': AppDatabase.demoUserId,
+        'client_id': widget.clientId.isNotEmpty ? widget.clientId : 'client_casino_sip_01',
+        'scope': widget.scope,
+        'iat': issuedAt,
+        'exp': expiresAt,
+        'jti': tokenId,
+      };
+      final payload = base64Url.encode(utf8.encode(jsonEncode(claims))).replaceAll('=', '');
+      final signatureContent = '$header.$payload';
+      final signature = LocalCryptoHelper.hmacSha256Hex('SIP_LOCAL_OFFLINE_SECRET_KEY', signatureContent);
+      final simulatedJwt = '$signatureContent.$signature';
+
+      await AppDatabase().saveOAuthToken(
+        id: tokenId,
+        clientId: widget.clientId.isNotEmpty ? widget.clientId : 'client_casino_sip_01',
+        userId: AppDatabase.demoUserId,
+        token: simulatedJwt,
+        issuedAt: now.toIso8601String(),
+        expiresAt: DateTime.fromMillisecondsSinceEpoch(expiresAt * 1000).toIso8601String(),
+        scopes: widget.scope,
+      );
+
+      await AppDatabase().addLinkedApp(
+        name: _verifiedClientName ?? 'Plataforma Externa',
+        clientId: widget.clientId.isNotEmpty ? widget.clientId : 'client_casino_sip_01',
+        type: 'OAUTH',
+        scopes: widget.scope,
+      );
+
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        await showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green),
+                SizedBox(width: 8),
+                Text('Acceso Concedido'),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Token emitido exitosamente (RS256 Simulado).'),
+                  const SizedBox(height: 12),
+                  const Text('Claims del Token (CERO datos personales):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  const SizedBox(height: 6),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black87,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: SelectableText(
+                      const JsonEncoder.withIndent('  ').convert(claims),
+                      style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: Colors.greenAccent),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Continuar'),
+              ),
+            ],
+          ),
+        );
+
+        if (mounted) {
+          Navigator.of(context).pop({'code': 'local_code_$tokenId', 'token': simulatedJwt});
+        }
+      }
+      return;
+    }
+
     try {
       String? code;
       String? state;
@@ -148,7 +257,6 @@ class _OauthConsentScreenState extends State<OauthConsentScreen> {
       }
 
       if (code != null) {
-        
         final parsedUri = Uri.parse(_validatedRedirectUri!);
         final returnUri = parsedUri.replace(
           queryParameters: {

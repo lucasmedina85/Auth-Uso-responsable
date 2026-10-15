@@ -498,6 +498,14 @@ class _LinkedApplicationsScreenState extends State<LinkedApplicationsScreen> {
         title: const Text('Aplicaciones Vinculadas'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.hub_outlined),
+            tooltip: 'Simulador de Plataforma Externa (Playground)',
+            onPressed: () async {
+              await Navigator.pushNamed(context, '/oauth_playground');
+              _loadAllApps();
+            },
+          ),
+          IconButton(
             icon: _isExporting
                 ? const SizedBox(
                     width: 20,
@@ -664,6 +672,14 @@ class _LinkedApplicationsScreenState extends State<LinkedApplicationsScreen> {
                 ),
               ],
             ),
+      floatingActionButton: FloatingActionButton.extended(
+        icon: const Icon(Icons.hub_outlined),
+        label: const Text('Simulador Terceros'),
+        onPressed: () async {
+          await Navigator.pushNamed(context, '/oauth_playground');
+          _loadAllApps();
+        },
+      ),
     );
   }
 }

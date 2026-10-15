@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -382,14 +381,12 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                       Navigator.pushNamed(context, '/device_activity');
                     }),
                   ),
-                  if (kDebugMode) ...[
-                    const SizedBox(width: DesignTokens.spacing16),
-                    Expanded(
-                      child: _buildActionCard(context, Icons.notification_important, '[DEBUG]\nSimular Alerta', () {
-                        NotificationService().simulateBackendPush();
-                      }),
-                    ),
-                  ],
+                  const SizedBox(width: DesignTokens.spacing16),
+                  Expanded(
+                    child: _buildActionCard(context, Icons.hub_outlined, 'Simulador\nTerceros (OAuth)', () {
+                      Navigator.pushNamed(context, '/oauth_playground');
+                    }),
+                  ),
                 ],
               ),
             ],
