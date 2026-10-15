@@ -1,6 +1,10 @@
+import 'dart:convert';
 import 'dart:developer';
 import 'package:dio/dio.dart';
+import '../core/config/app_config.dart';
+import '../core/database/app_database.dart';
 import '../core/network/dio_client.dart';
+import '../core/security/local_crypto_helper.dart';
 
 class UserActivityApiService {
   static final UserActivityApiService _instance = UserActivityApiService._internal();
@@ -9,7 +13,7 @@ class UserActivityApiService {
 
   Dio get _dio => DioClient().dio;
 
-  /// Obtiene la actividad real paginada y filtrada del usuario desde el backend
+  /// Obtiene la actividad real paginada y filtrada del usuario (local o remota)
   Future<Map<String, dynamic>> getUserActivity({
     int page = 0,
     int size = 20,
@@ -17,6 +21,33 @@ class UserActivityApiService {
     String? startDate,
     String? endDate,
   }) async {
+    if (AppConfig.isLocal) {
+      final logs = await AppDatabase().getActivityLogs(
+        type: type,
+        page: page,
+        size: size,
+      );
+      final events = logs.map((l) => {
+        'id': l['id'],
+        'type': l['type'],
+        'action': l['action'],
+        'description': l['description'],
+        'ipAddress': l['ip_address'],
+        'deviceId': l['device_id'],
+        'timestamp': l['timestamp'],
+        'severity': l['severity'],
+      }).toList();
+
+      return {
+        'events': events,
+        'page': page,
+        'size': size,
+        'totalElements': events.length,
+        'totalPages': 1,
+        'hasNext': false,
+      };
+    }
+
     try {
       final queryParams = <String, dynamic>{
         'page': page,
@@ -56,6 +87,27 @@ class UserActivityApiService {
     String? startDate,
     String? endDate,
   }) async {
+    if (AppConfig.isLocal) {
+      final logs = await AppDatabase().getActivityLogs(page: 0, size: 100);
+      final payloadData = {
+        'userPseudonym': 'usr-demo-***',
+        'dateRange': '${startDate ?? 'Inicio'} - ${endDate ?? 'Presente'}',
+        'generatedAt': DateTime.now().toIso8601String(),
+        'totalRecords': logs.length,
+        'events': logs,
+      };
+      final payloadJson = jsonEncode(payloadData);
+      final exportHash = LocalCryptoHelper.sha256Hex(payloadJson);
+      final signature = LocalCryptoHelper.hmacSha256Hex('SIP_LOCAL_OFFLINE_SECRET_KEY', exportHash);
+
+      return {
+        'integrityHashSha256': exportHash,
+        'signature': signature,
+        'signingAlgorithm': 'RS256 (Simulado Offline)',
+        'payload': payloadData,
+      };
+    }
+
     try {
       final queryParams = <String, dynamic>{};
       if (startDate != null && startDate.isNotEmpty) {

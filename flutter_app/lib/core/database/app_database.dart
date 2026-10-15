@@ -600,6 +600,73 @@ class AppDatabase {
     await addAuditEvent('APP_REVOKED', {'appId': id});
   }
 
+  // ==================== OAUTH TOKENS ====================
+
+  Future<void> saveOAuthToken({
+    required String id,
+    required String clientId,
+    required String userId,
+    required String token,
+    String tokenType = 'Bearer',
+    required String issuedAt,
+    required String expiresAt,
+    required String scopes,
+  }) async {
+    final db = await database;
+    await db.insert('local_oauth_tokens', {
+      'id': id,
+      'client_id': clientId,
+      'user_id': userId,
+      'token': token,
+      'token_type': tokenType,
+      'issued_at': issuedAt,
+      'expires_at': expiresAt,
+      'revoked': 0,
+      'scopes': scopes,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+    await addAuditEvent('OAUTH_TOKEN_ISSUED', {
+      'tokenId': id,
+      'clientId': clientId,
+      'userId': userId,
+      'scopes': scopes,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getOAuthTokens({String? userId}) async {
+    final db = await database;
+    final targetUser = userId ?? demoUserId;
+    final res = await db.query(
+      'local_oauth_tokens',
+      where: 'user_id = ?',
+      whereArgs: [targetUser],
+      orderBy: 'issued_at DESC',
+    );
+    return res.map((r) => Map<String, dynamic>.from(r)).toList();
+  }
+
+  Future<void> revokeOAuthToken(String tokenId) async {
+    final db = await database;
+    await db.update(
+      'local_oauth_tokens',
+      {'revoked': 1},
+      where: 'id = ?',
+      whereArgs: [tokenId],
+    );
+    await addAuditEvent('OAUTH_TOKEN_REVOKED', {'tokenId': tokenId});
+  }
+
+  /// Método de prueba para verificar detección de alteraciones en la cadena (CU-0050)
+  Future<void> tamperChainForTesting(int chainIndex, String alteredPayload) async {
+    final db = await database;
+    await db.update(
+      'local_audit_chain',
+      {'payload': alteredPayload},
+      where: 'chain_index = ?',
+      whereArgs: [chainIndex],
+    );
+  }
+
   // ==================== REINICIAR BASE PARA PRUEBAS ====================
 
   Future<void> resetForDemo() async {

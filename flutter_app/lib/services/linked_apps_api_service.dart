@@ -1,6 +1,10 @@
+import 'dart:convert';
 import 'dart:developer';
 import 'package:dio/dio.dart';
+import '../core/config/app_config.dart';
+import '../core/database/app_database.dart';
 import '../core/network/dio_client.dart';
+import '../core/security/local_crypto_helper.dart';
 
 class LinkedAppsApiService {
   static final LinkedAppsApiService _instance = LinkedAppsApiService._internal();
@@ -9,8 +13,23 @@ class LinkedAppsApiService {
 
   Dio get _dio => DioClient().dio;
 
-  /// Obtiene la lista de aplicaciones OAuth vinculadas desde el backend (CU-0027)
+  /// Obtiene la lista de aplicaciones OAuth vinculadas (local o backend) (CU-0027)
   Future<List<Map<String, dynamic>>> getLinkedApplications() async {
+    if (AppConfig.isLocal) {
+      final apps = await AppDatabase().getLinkedApps();
+      final oauthApps = apps.where((a) => a['type'] == 'OAUTH').toList();
+      return oauthApps.map((a) => {
+        'id': a['id'],
+        'clientId': a['client_id'] ?? a['id'],
+        'name': a['name'],
+        'linkedAt': a['added_at'],
+        'status': a['status'],
+        'scopes': a['scopes'] ?? 'read:profile,verify:age',
+        'tokenStatus': a['status'] == 'ACTIVE' ? 'VIGENTE' : 'REVOCADO',
+        'lastUsedAt': a['added_at'],
+      }).toList();
+    }
+
     try {
       final response = await _dio.get('/oauth/linked-applications');
       if (response.statusCode == 200 && response.data is List) {
@@ -25,8 +44,13 @@ class LinkedAppsApiService {
     }
   }
 
-  /// Desvincula una aplicación OAuth (revoca tokens emitidos y JTI en RevocationStore)
+  /// Desvincula una aplicación OAuth (local o backend)
   Future<bool> unlinkApplication(String clientId) async {
+    if (AppConfig.isLocal) {
+      await AppDatabase().revokeLinkedApp(clientId);
+      return true;
+    }
+
     try {
       final response = await _dio.post('/oauth/unlink', data: {
         'clientId': clientId,
@@ -44,6 +68,27 @@ class LinkedAppsApiService {
     String? startDate,
     String? endDate,
   }) async {
+    if (AppConfig.isLocal) {
+      final apps = await AppDatabase().getLinkedApps();
+      final payloadData = {
+        'userPseudonym': 'usr-demo-***',
+        'dateRange': '${startDate ?? 'Inicio'} - ${endDate ?? 'Presente'}',
+        'generatedAt': DateTime.now().toIso8601String(),
+        'totalRecords': apps.length,
+        'applications': apps,
+      };
+      final payloadJson = jsonEncode(payloadData);
+      final exportHash = LocalCryptoHelper.sha256Hex(payloadJson);
+      final signature = LocalCryptoHelper.hmacSha256Hex('SIP_LOCAL_OFFLINE_SECRET_KEY', exportHash);
+
+      return {
+        'integrityHashSha256': exportHash,
+        'signature': signature,
+        'signingAlgorithm': 'RS256 (Simulado Offline)',
+        'payload': payloadData,
+      };
+    }
+
     try {
       final queryParams = <String, dynamic>{};
       if (startDate != null && startDate.isNotEmpty) {

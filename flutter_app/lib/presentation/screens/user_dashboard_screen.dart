@@ -366,6 +366,22 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                       Navigator.pushNamed(context, '/linked_apps_list');
                     }),
                   ),
+                  const SizedBox(width: DesignTokens.spacing16),
+                  Expanded(
+                    child: _buildActionCard(context, Icons.link, 'Bitácora\nCriptográfica', () {
+                      Navigator.pushNamed(context, '/audit_chain');
+                    }),
+                  ),
+                ],
+              ),
+              const SizedBox(height: DesignTokens.spacing16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildActionCard(context, Icons.history, 'Actividad\ny Eventos', () {
+                      Navigator.pushNamed(context, '/device_activity');
+                    }),
+                  ),
                   if (kDebugMode) ...[
                     const SizedBox(width: DesignTokens.spacing16),
                     Expanded(

@@ -34,6 +34,7 @@ import 'presentation/screens/transfer_accounts_screen.dart';
 import 'presentation/screens/emulator_blocked_screen.dart';
 import 'presentation/screens/verification_review_screen.dart';
 import 'presentation/screens/oauth_consent_screen.dart';
+import 'presentation/screens/audit_chain_screen.dart';
 import 'presentation/widgets/session_manager.dart';
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
 
@@ -172,6 +173,8 @@ class AuthenticatorApp extends StatelessWidget {
             scope: args['scope']?.toString() ?? 'openid',
           );
         },
+        
+        '/audit_chain': (context) => const AuditChainScreen(),
         
         // Legacy routes kept for compatibility
         '/logs': (context) => const LogsScreen(),
